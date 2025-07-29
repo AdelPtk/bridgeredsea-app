@@ -29,7 +29,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-bridge-blue/5 to-bridge-red/5">
+    <div className="min-h-screen bg-gradient-to-br from-background via-bridge-blue/5 to-bridge-red/5" dir="rtl">
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* Header */}
         <div className="text-center space-y-4">
@@ -63,7 +63,7 @@ const Index = () => {
                   value={participantId}
                   onChange={(e) => setParticipantId(e.target.value)}
                   className="border-2 border-bridge-blue/30 focus:border-bridge-blue"
-                  dir="ltr"
+                  dir="rtl"
                 />
               </div>
               

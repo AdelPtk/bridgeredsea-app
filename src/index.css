@@ -112,5 +112,11 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    direction: rtl;
+  }
+  
+  /* RTL adjustments */
+  .rtl-flip {
+    transform: scaleX(-1);
   }
 }

@@ -9,7 +9,7 @@ interface ParticipantCardProps {
 
 const ParticipantCard = ({ participant }: ParticipantCardProps) => {
   return (
-    <Card className="w-full max-w-2xl mx-auto border-2 border-bridge-blue/20 shadow-lg">
+    <Card className="w-full max-w-2xl mx-auto border-2 border-bridge-blue/20 shadow-lg" dir="rtl">
       <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
         <CardTitle className="text-center text-2xl font-bold">
           פרטי אורח - פסטיבל ברידג' ים האדום

@@ -103,7 +103,7 @@ const ParticipantPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-bridge-blue/5 to-bridge-red/5">
+    <div className="min-h-screen bg-gradient-to-br from-background via-bridge-blue/5 to-bridge-red/5" dir="rtl">
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* Header with Bridge Symbols */}
         <div className="text-center space-y-4">

@@ -80,7 +80,7 @@ const EventsList = ({ participant }: EventsListProps) => {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-4">
+    <div className="w-full max-w-2xl mx-auto space-y-4" dir="rtl">
       <Card className="border-2 border-bridge-red/20">
         <CardHeader className="bg-gradient-to-r from-bridge-red to-bridge-blue text-white">
           <CardTitle className="text-center text-xl font-bold">
