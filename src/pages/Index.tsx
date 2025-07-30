@@ -5,11 +5,57 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import BridgeSymbols from "@/components/BridgeSymbols";
 import { useState } from "react";
+import { useEffect } from "react";
+import Papa from "papaparse";
+// קריאת DATA.csv מה-public
 import { toast } from "@/hooks/use-toast";
 
 const Index = () => {
   const navigate = useNavigate();
   const [participantId, setParticipantId] = useState("");
+  const [csvParticipants, setCsvParticipants] = useState<any[]>([]);
+
+  // קריאה ופרסינג של DATA.csv מה-public
+  useEffect(() => {
+    fetch("/DATA.csv")
+      .then((res) => res.text())
+      .then((csvText) => {
+        Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            setCsvParticipants(results.data);
+          },
+        });
+      })
+      .catch(() => {
+        setCsvParticipants([]);
+      });
+  }, []);
+
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        setCsvParticipants(results.data);
+        toast({
+          title: "הקובץ נטען בהצלחה!",
+          description: `נמצאו ${results.data.length} משתתפים.`,
+          variant: "success",
+        });
+      },
+      error: () => {
+        toast({
+          title: "שגיאה",
+          description: "התרחשה שגיאה בקריאת הקובץ.",
+          variant: "destructive",
+        });
+      }
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +83,6 @@ const Index = () => {
           <h1 className="text-5xl font-bold text-bridge-blue mb-4">
             פסטיבל ברידג' ים האדום
           </h1>
-          <p className="text-2xl text-bridge-red font-semibold">אילת 2024</p>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             ברוכים הבאים למערכת השוברים הדיגיטלית של פסטיבל הברידג' באילת
           </p>
@@ -75,27 +120,30 @@ const Index = () => {
               </Button>
             </form>
 
+            {/* אזור העלאת קובץ CSV */}
+            {/* הצגת משתתפים מתוך DATA.csv */}
+
             <div className="border-t pt-4">
               <p className="text-sm text-muted-foreground text-center mb-3">
-                דוגמאות לבדיקה:
+                צפייה בנתוני משתתפים מהקובץ:
               </p>
               <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDemoClick("258078566")}
-                  className="w-full border-bridge-blue text-bridge-blue hover:bg-bridge-blue hover:text-white"
-                >
-                  יוסי כהן - 258078566
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDemoClick("123456789")}
-                  className="w-full border-bridge-red text-bridge-red hover:bg-bridge-red hover:text-white"
-                >
-                  רחל לוי - 123456789
-                </Button>
+                {csvParticipants.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center">לא נטען קובץ משתתפים.</p>
+                ) : (
+                  csvParticipants.map((p, idx) => (
+                    <Button
+                      key={idx}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDemoClick(p.id || p.ID || p["מזהה"] || "")}
+                      className="w-full border-bridge-blue text-bridge-blue hover:bg-bridge-blue hover:text-white"
+                      disabled={!p.id && !p.ID && !p["מזהה"]}
+                    >
+                      {p.name || p.Name || p["שם"] || "משתתף"} - {p.id || p.ID || p["מזהה"] || "לא ידוע"}
+                    </Button>
+                  ))
+                )}
               </div>
             </div>
           </CardContent>

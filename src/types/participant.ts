@@ -15,9 +15,12 @@ export interface Participant {
   // Events (displayed as cards if not "NO")
   OPENING: string;
   RB1: string;
+  TERRACE1: string;
   SOUPS: string;
   COCKTAIL: string;
+  TERRACE2: string;
   RB2: string;
+  TERRACE3: string;
   PRIZES: string;
   WOW: string;
 }

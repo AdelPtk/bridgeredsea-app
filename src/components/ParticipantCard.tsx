@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Users, MapPin, Ticket } from "lucide-react";
+import { User } from "lucide-react";
 import { Participant } from "@/types/participant";
 
 interface ParticipantCardProps {
@@ -9,10 +10,10 @@ interface ParticipantCardProps {
 
 const ParticipantCard = ({ participant }: ParticipantCardProps) => {
   return (
-    <Card className="w-full max-w-2xl mx-auto border-2 border-bridge-blue/20 shadow-lg" dir="rtl">
-      <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
+    <Card className="w-full max-w-2xl mx-auto border-2 border-bridge-blue/20 shadow-lg bg-white rounded-t-lg" dir="rtl">
+      <CardHeader className="bg-[#1b248b] text-white">
         <CardTitle className="text-center text-2xl font-bold">
-          פרטי אורח - פסטיבל ברידג' ים האדום
+          פרטי משתתף
         </CardTitle>
       </CardHeader>
       <CardContent className="p-6 space-y-4">
@@ -26,17 +27,17 @@ const ParticipantCard = ({ participant }: ParticipantCardProps) => {
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="text-bridge-red text-2xl">👤</div>
+            <User className="text-bridge-red h-5 w-5" />
             <div>
               <p className="text-sm text-muted-foreground">שם</p>
-              <p className="font-semibold text-bridge-black text-lg">{participant.NAME}</p>
+              <p className="font-semibold text-bridge-black">{participant.NAME}</p>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
             <MapPin className="text-bridge-blue h-5 w-5" />
             <div>
-              <p className="text-sm text-muted-foreground">מלון</p>
+              <p className="text-sm text-muted-foreground">בית מלון</p>
               <p className="font-semibold text-bridge-black">{participant.HOTEL}</p>
             </div>
           </div>
@@ -45,9 +46,7 @@ const ParticipantCard = ({ participant }: ParticipantCardProps) => {
             <Users className="text-bridge-red h-5 w-5" />
             <div>
               <p className="text-sm text-muted-foreground">מספר מבוגרים</p>
-              <Badge variant="outline" className="border-bridge-blue text-bridge-blue">
-                {participant.ADULTS}
-              </Badge>
+              <p className="font-semibold text-bridge-black">{participant.ADULTS}</p>
             </div>
           </div>
           
