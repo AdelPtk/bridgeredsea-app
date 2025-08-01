@@ -80,9 +80,11 @@ const Index = () => {
         {/* Header */}
         <div className="text-center space-y-4">
           <BridgeSymbols />
-          <h1 className="text-5xl font-bold text-bridge-blue mb-4">
-            פסטיבל ברידג' ים האדום
-          </h1>
+          <img
+            src="/RedSea-MainText-HEB.svg"
+            alt="פסטיבל ברידג' ים האדום"
+            className="mx-auto mb-4 max-w-xs h-auto"
+          />
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             ברוכים הבאים למערכת השוברים הדיגיטלית של פסטיבל הברידג' באילת
           </p>
@@ -96,29 +98,7 @@ const Index = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="participantId" className="text-bridge-black font-semibold">
-                  מזהה משתתף
-                </Label>
-                <Input
-                  id="participantId"
-                  type="text"
-                  placeholder="הכנס את המזהה שקיבלת"
-                  value={participantId}
-                  onChange={(e) => setParticipantId(e.target.value)}
-                  className="border-2 border-bridge-blue/30 focus:border-bridge-blue"
-                  dir="rtl"
-                />
-              </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full bg-bridge-blue hover:bg-bridge-blue/90 text-white font-semibold py-2"
-              >
-                צפה בפרטי האירוח
-              </Button>
-            </form>
+            {/* טופס מזהה משתתף הוסר לפי בקשת המשתמש */}
 
             {/* אזור העלאת קובץ CSV */}
             {/* הצגת משתתפים מתוך DATA.csv */}
@@ -140,7 +120,7 @@ const Index = () => {
                       className="w-full border-bridge-blue text-bridge-blue hover:bg-bridge-blue hover:text-white"
                       disabled={!p.id && !p.ID && !p["מזהה"]}
                     >
-                      {p.name || p.Name || p["שם"] || "משתתף"} - {p.id || p.ID || p["מזהה"] || "לא ידוע"}
+                      {p.NAME || ""}
                     </Button>
                   ))
                 )}
@@ -152,9 +132,6 @@ const Index = () => {
         {/* Footer */}
         <div className="text-center pt-8">
           <BridgeSymbols className="opacity-50" />
-          <p className="text-sm text-muted-foreground mt-4">
-            נתראה בפסטיבל! 🌊🏖️
-          </p>
         </div>
       </div>
     </div>
