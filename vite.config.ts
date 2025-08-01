@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/bridgeredsea-app/',
+  base: process.env.NODE_ENV === 'development' ? '/' : '/',
   server: {
     host: "::",
     port: 8080,
