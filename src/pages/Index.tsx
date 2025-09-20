@@ -9,11 +9,15 @@ import { useEffect } from "react";
 import Papa from "papaparse";
 // קריאת DATA.csv מה-public
 import { toast } from "@/hooks/use-toast";
+import { upsertParticipantAndSeedEvents, getYearKey } from "@/services/participants";
+import { removeEventForAllParticipants } from "@/services/participants";
 
 const Index = () => {
   const navigate = useNavigate();
   const [participantId, setParticipantId] = useState("");
   const [csvParticipants, setCsvParticipants] = useState<any[]>([]);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [removingWow, setRemovingWow] = useState(false);
 
   // קריאה ופרסינג של DATA.csv מה-public
   useEffect(() => {
@@ -44,7 +48,6 @@ const Index = () => {
         toast({
           title: "הקובץ נטען בהצלחה!",
           description: `נמצאו ${results.data.length} משתתפים.`,
-          variant: "success",
         });
       },
       error: () => {
@@ -71,7 +74,61 @@ const Index = () => {
   };
 
   const handleDemoClick = (id: string) => {
-    navigate(`/events?id=${id}`);
+    navigate(`/events?id=${encodeURIComponent(id)}`);
+  };
+
+  // Build event seeds for a CSV row (align with EventsList mappings)
+  const buildEventSeeds = (row: any) => {
+    const seeds: { key: string; name: string; description?: string; allowedValue?: string; quantity?: number }[] = [];
+    const pushIf = (key: string, name: string, description?: string) => {
+      const v = row[key];
+      if (typeof v === "string" && v.trim() !== "" && v !== "NO") {
+        seeds.push({ key, name, description, allowedValue: v });
+      }
+    };
+    pushIf("OPENING", "קוקטייל פתיחת הפסטיבל", "טקס פתיחה חגיגי של הפסטיבל");
+    pushIf("RB1", "ארוחת ערב מיוחדת", "לאורחי מלון רויאל ביץ'");
+    pushIf("TERRACE1", "שעה קולינרית", "כיבוד קל על המרפסת");
+    pushIf("SOUPS", "קוקטייל חצות", "יין, מרקים, גבינות ומאפים");
+    pushIf("COCKTAIL", "קוקטייל ערב", "קוקטייל חגיגי עם כיבוד עשיר והופעה");
+    pushIf("TERRACE2", "שעה מתוקה", "ארוחת צהריים קלילה ומתוקה");
+    pushIf("RB2", "ארוחת ברביקיו", "לאורחי מלון רויאל ביץ'");
+    pushIf("TERRACE3", "שעה בלקנית", "טעמים ומוזיקה מהבלקן על המרפסת");
+  pushIf("PRIZES", "טקס פרסים", "חלוקת פרסים וסיכום");
+    return seeds;
+  };
+
+  const handleSyncAllToFirestore = async () => {
+    try {
+      setSyncingAll(true);
+      const year = getYearKey();
+      let count = 0;
+      for (const row of csvParticipants) {
+        const pid = String(row.ID ?? row.id ?? row["מזהה"] ?? "").trim();
+        if (!pid) continue;
+        const seeds = buildEventSeeds(row);
+        await upsertParticipantAndSeedEvents(year, row, seeds);
+        count++;
+      }
+      toast({ title: "סנכרון הושלם", description: `נסנכרו ${count} משתתפים לשנה ${year}.` });
+    } catch (e) {
+      toast({ title: "שגיאת סנכרון", description: String(e), variant: "destructive" });
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
+  const handleRemoveWowForAll = async () => {
+    try {
+      setRemovingWow(true);
+      const year = getYearKey();
+      const count = await removeEventForAllParticipants(year, "WOW");
+      toast({ title: "WOW הוסר", description: `הוסר למשתתפים (${count}).` });
+    } catch (e) {
+      toast({ title: "שגיאה", description: String(e), variant: "destructive" });
+    } finally {
+      setRemovingWow(false);
+    }
   };
 
   return (
@@ -103,6 +160,30 @@ const Index = () => {
             {/* אזור העלאת קובץ CSV */}
             {/* הצגת משתתפים מתוך DATA.csv */}
 
+            {import.meta.env.DEV && (
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full border-bridge-red text-bridge-red hover:bg-bridge-red hover:text-white"
+                  onClick={handleSyncAllToFirestore}
+                  disabled={syncingAll || csvParticipants.length === 0}
+                >
+                  {syncingAll ? "מסנכרן את כל המשתתפים…" : "סנכרון כל המשתתפים ל-Firestore (DEV)"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full border-bridge-blue text-bridge-blue hover:bg-bridge-blue hover:text-white"
+                  onClick={handleRemoveWowForAll}
+                  disabled={removingWow}
+                >
+                  {removingWow ? "מסיר WOW מכל המשתתפים…" : "הסר WOW מכל המשתתפים (DEV)"}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  הפעולה יוצרת/מעדכנת מסמכי משתתפים ותת-אירועים לפי DATA.csv עבור השנה הפעילה.
+                </p>
+              </div>
+            )}
+
             <div className="border-t pt-4">
               <p className="text-sm text-muted-foreground text-center mb-3">
                 צפייה בנתוני משתתפים מהקובץ:
@@ -111,14 +192,14 @@ const Index = () => {
                 {csvParticipants.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center">לא נטען קובץ משתתפים.</p>
                 ) : (
-                  csvParticipants.map((p, idx) => (
+          csvParticipants.map((p, idx) => (
                     <Button
                       key={idx}
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDemoClick(p.id || p.ID || p["מזהה"] || "")}
+            onClick={() => handleDemoClick((p.ID ?? p.id ?? p["מזהה"] ?? "").toString().trim())}
                       className="w-full border-bridge-blue text-bridge-blue hover:bg-bridge-blue hover:text-white"
-                      disabled={!p.id && !p.ID && !p["מזהה"]}
+            disabled={!(p.ID || p.id || p["מזהה"]) }
                     >
                       {p.NAME || ""}
                     </Button>

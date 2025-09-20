@@ -17,7 +17,7 @@ const ParticipantCard = ({ participant }: ParticipantCardProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-6 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div className="grid grid-cols-2 gap-4">
           <div className="flex items-center gap-3">
             <Ticket className="text-bridge-blue h-5 w-5" />
             <div>

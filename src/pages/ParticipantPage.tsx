@@ -6,7 +6,8 @@ import EventsList from "@/components/EventsList";
 
 const ParticipantPage = () => {
   const [searchParams] = useSearchParams();
-  const id = searchParams.get("id");
+  const idParamRaw = searchParams.get("id") ?? "";
+  const id = decodeURIComponent(idParamRaw);
   const [participant, setParticipant] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,8 +19,11 @@ const ParticipantPage = () => {
           header: true,
           skipEmptyLines: true,
           complete: (results) => {
+            const normalize = (v: any) => String(v ?? "").trim();
+            const target = normalize(id);
             const found = results.data.find((row: any) => {
-              return row.id === id || row.ID === id || row["מזהה"] === id;
+              const candidates = [row.ID, row.id, row["מזהה"], row.RESERVATION_NUM];
+              return candidates.some((v) => normalize(v) === target);
             });
             setParticipant(found || null);
             setLoading(false);
@@ -44,7 +48,7 @@ const ParticipantPage = () => {
         <div className="flex justify-center mb-6">
           <img src="/RedSea-MainText-HEB.svg" alt="RedSea Bridge Festival" className="max-h-24 w-auto" />
         </div>
-        <ParticipantCard participant={participant} />
+  <ParticipantCard participant={participant} />
         <EventsList participant={participant} />
       </div>
     </div>

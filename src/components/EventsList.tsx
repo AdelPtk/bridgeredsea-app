@@ -1,14 +1,64 @@
 import AnimatedList from "./ui/AnimatedList";
+import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
+import { useEffect, useState } from "react";
 import { Participant, EventInfo } from "@/types/participant";
-import { Calendar, Crown, Utensils, Wine, Trophy, Sparkles, PartyPopper } from "lucide-react";
+import {
+  getYearKey,
+  upsertParticipantAndSeedEvents,
+  fetchEventsStatus,
+  setEventRedeemed,
+} from "@/services/participants";
+// Icons not used in UI anymore; keeping icon names only as strings in mapping
 
 interface EventsListProps {
   participant: Participant;
 }
 
 const EventsList = ({ participant }: EventsListProps) => {
+  const [redeemedMap, setRedeemedMap] = useState<Record<string, boolean>>({});
+  const [quantityMap, setQuantityMap] = useState<Record<string, number>>({});
+  const [loadingStatus, setLoadingStatus] = useState<boolean>(true);
+
+  // Very light pastel rainbow-like colors (strongly mixed with white)
+  const pastelBGs = [
+    "#FFE4E6", // light rose/red (a bit darker)
+    "#FFEDD5", // light orange (a bit darker)
+    "#FEF3C7", // light yellow (a bit darker)
+    "#D1FAE5", // light green (a bit darker)
+    "#DBEAFE", // light blue (a bit darker)
+    "#EDE9FE", // light indigo/purple (a bit darker)
+    "#FCE7F3", // light pink/violet (a bit darker)
+  ];
+  // Fixed color per event key (rainbow order, cycling through the palette)
+  const orderedEventKeys = [
+    "OPENING",
+    "RB1",
+    "TERRACE1",
+    "SOUPS",
+    "COCKTAIL",
+    "TERRACE2",
+    "RB2",
+    "TERRACE3",
+    "PRIZES",
+  ] as const;
+  const eventColorMap: Record<string, string> = Object.fromEntries(
+    orderedEventKeys.map((k, idx) => [k, pastelBGs[idx % pastelBGs.length]])
+  );
   const eventMappings: Record<string, EventInfo & { date?: string; location?: string }> = {
     OPENING: {
       name: "קוקטייל פתיחת הפסטיבל",
@@ -16,7 +66,7 @@ const EventsList = ({ participant }: EventsListProps) => {
       description: "טקס פתיחה חגיגי של הפסטיבל",
       icon: "PartyPopper",
       date: "13/11/2025 19:00",
-      location: "מרפסת לובי רויאל ביץ'"
+      location: "מרפסת לובי רויאל ביץ'",
     },
     RB1: {
       name: "ארוחת ערב מיוחדת",
@@ -32,15 +82,15 @@ const EventsList = ({ participant }: EventsListProps) => {
       description: "ארוחת צהריים קלילה ומתוקה",
       icon: "Utensils",
       date: "16/11/2025 19:00",
-      location: "מרפסת לובי רויאל ביץ'"
+      location: "מרפסת לובי רויאל ביץ'",
     },
     SOUPS: {
       name: "קוקטייל חצות",
       value: participant.SOUPS,
       description: "יין, מרקים, גבינות ומאפים",
-      icon: "Utensils",
-      date: "17/11/2025 23:30",
-      location: "מרפסת לובי רויאל ביץ'"
+      icon: "Wine",
+      date: "17/11/2025 15:00",
+      location: "מרפסת לובי רויאל ביץ'",
     },
     COCKTAIL: {
       name: "קוקטייל פתיחת התחרות המרכזית",
@@ -48,7 +98,7 @@ const EventsList = ({ participant }: EventsListProps) => {
       description: "קוקטייל חגיגי עם כיבוד עשיר והופעה",
       icon: "Wine",
       date: "19/11/2025 19:00",
-      location: "שפת בריכת מלון רויאל ביץ'"
+      location: "שפת בריכת מלון רויאל ביץ'",
     },
     TERRACE2: {
       name: "שעה מתוקה",
@@ -56,7 +106,7 @@ const EventsList = ({ participant }: EventsListProps) => {
       description: "ארוחת צהריים קלילה ומתוקה",
       icon: "Crown",
       date: "20/11/2025 15:00",
-      location: "מרפסת לובי רויאל ביץ'"
+      location: "מרפסת לובי רויאל ביץ'",
     },
     RB2: {
       name: "ארוחת ברביקיו",
@@ -64,49 +114,96 @@ const EventsList = ({ participant }: EventsListProps) => {
       description: "לאורחי מלון רויאל ביץ'",
       icon: "Utensils",
       date: "20/11/2025 19:00/20:30",
-      location: "חדר אוכל רויאל ביץ'"
+      location: "חדר אוכל רויאל ביץ'",
     },
     TERRACE3: {
       name: "שעה בלקנית",
       value: participant.TERRACE3,
       description: "ארוחת צהריים קלילה ומתוקה",
-      icon: "Utensils",
-      date: "21/11/2025 14:00",
-      location: "מרפסת לובי רויאל ביץ'"
+      icon: "Sparkles",
+      date: "21/11/2025 15:00",
+      location: "מרפסת לובי רויאל ביץ'",
     },
-    PRIZES: {
-      name: "טקס חלוקת פרסים",
+  PRIZES: {
+      name: "טקס פרסים",
       value: participant.PRIZES,
       description: "טקס חלוקת פרסים חגיגי, קוקטייל ומסיבת ריקודים",
       icon: "Trophy",
-      date: "21/11/2025 21:30",
-      location: "אולם הכנסים רויאל ביץ'"
+      date: "21/11/2025 21:00",
+      location: "מרכז הכנסים רויאל ביץ'",
     },
-    WOW: {
-      name: "מופע ישרוטל WOW Bellissimo",
-      value: participant.WOW,
-      description: "כרטיסים חינם למופע המרהיב, איסוף בדלפק הברידג'",
-      icon: "Sparkles",
-      date: "שני-שבת, 20:30",
-      location: "תיאטרון הרויאל גארדן"
-    }
-  };
-
-  const getIconComponent = (iconName: string) => {
-    const icons: Record<string, any> = {
-      PartyPopper,
-      Crown,
-      Utensils,
-      Wine,
-      Trophy,
-      Sparkles
-    };
-    return icons[iconName] || Calendar;
   };
 
   const availableEvents = Object.entries(eventMappings).filter(
     ([_, event]) => event.value !== "NO" && event.value.trim() !== ""
   );
+  // Note: Background color is now determined solely by the fixed eventColorMap above
+
+  // Seed participant+events and load redeemed state from Firestore on mount/participant change
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingStatus(true);
+      const pid = String(participant.ID ?? (participant as any).id ?? (participant as any)["מזהה"] ?? "").trim();
+      if (!pid) {
+        setRedeemedMap({});
+        setQuantityMap({});
+        setLoadingStatus(false);
+        return;
+      }
+      const year = getYearKey();
+      try {
+        // Seed participant and events if missing (once per session)
+        const seededKey = `seeded:${year}:${pid}`;
+        if (!sessionStorage.getItem(seededKey)) {
+          const seeds = availableEvents.map(([key, ev]) => ({
+            key,
+            name: ev.name,
+            description: ev.description,
+            allowedValue: ev.value,
+            quantity: Number((participant as any).ADULTS ?? (participant as any).adults) || 1,
+          }));
+          await upsertParticipantAndSeedEvents(year, participant, seeds);
+          sessionStorage.setItem(seededKey, "1");
+        }
+
+        // Fetch current statuses
+        const statuses = await fetchEventsStatus(year, pid, availableEvents.map(([k]) => k));
+        if (!cancelled) {
+          const rMap: Record<string, boolean> = {};
+          const qMap: Record<string, number> = {};
+          for (const [k, st] of Object.entries(statuses)) {
+            rMap[k] = st.redeemed;
+            qMap[k] = st.quantity;
+          }
+          setRedeemedMap(rMap);
+          setQuantityMap(qMap);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setRedeemedMap({});
+          setQuantityMap({});
+        }
+      } finally {
+        if (!cancelled) setLoadingStatus(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participant.ID]);
+
+  const redeemEvent = async (eventKey: string, eventName: string) => {
+    const pid = String(participant.ID ?? (participant as any).id ?? (participant as any)["מזהה"] ?? "").trim();
+    if (!pid) return;
+    const year = getYearKey();
+    try {
+      await setEventRedeemed(year, pid, eventKey, true);
+      setRedeemedMap((prev) => ({ ...prev, [eventKey]: true }));
+      toast({ title: "השובר נוצל", description: `${eventName} סומן כנוצל בהצלחה` });
+    } catch (e: any) {
+      toast({ title: "שגיאה", description: "אירעה שגיאה בעת סימון השובר", variant: "destructive" });
+    }
+  };
 
   if (availableEvents.length === 0) {
     return (
@@ -145,16 +242,25 @@ const EventsList = ({ participant }: EventsListProps) => {
         </CardHeader>
       </Card>
       <AnimatedList
-        items={availableEvents.map(([key, event]) => {
-          const IconComponent = getIconComponent(event.icon);
-          return (
-            <div key={key} className="bg-white rounded-xl shadow-sm p-4 mb-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-bridge-blue to-bridge-red flex items-center justify-center">
-                    <IconComponent className="h-6 w-6 text-white" />
-                  </div>
-                </div>
+        items={
+          // Sort so redeemed events appear at the bottom; preserve relative order within groups
+          [...availableEvents]
+            .sort(([keyA], [keyB]) => {
+              const aRedeemed = !!redeemedMap[keyA];
+              const bRedeemed = !!redeemedMap[keyB];
+              if (aRedeemed === bRedeemed) return 0;
+              return aRedeemed ? 1 : -1;
+            })
+            .map(([key, event]) => {
+              const bgColor = eventColorMap[key] ?? pastelBGs[0];
+              const isRedeemed = redeemedMap[key];
+              return (
+            <div
+              key={key}
+              className={`rounded-xl shadow-sm p-4 mb-4 border border-black/5 ${isRedeemed ? "opacity-70" : ""}`}
+              style={{ backgroundColor: bgColor }}
+            >
+              <div className="flex items-start gap-4">
                 <div className="flex-grow">
                   <h3 className="font-semibold text-bridge-black text-lg">
                     {event.name}
@@ -162,7 +268,7 @@ const EventsList = ({ participant }: EventsListProps) => {
                   <p className="text-sm text-muted-foreground mb-2">
                     {event.description}
                   </p>
-                  <div className="flex gap-2 mb-2 flex-wrap">
+                  <div className="flex gap-2 mb-2 flex-wrap items-center">
                     {event.date && (
                       <Badge variant="secondary" className="bg-bridge-blue/10 text-bridge-blue border-bridge-blue">
                         {event.date}
@@ -173,8 +279,40 @@ const EventsList = ({ participant }: EventsListProps) => {
                         {event.location}
                       </Badge>
                     )}
+                    {isRedeemed && (
+                      <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-300">
+                        נוצל
+                      </Badge>
+                    )}
                   </div>
-                  {/* Removed event value chip */}
+                </div>
+                {/* Left-side action button */}
+                <div className="flex-shrink-0 self-center">
+                  {!isRedeemed && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          className="group bg-gradient-to-r from-bridge-blue to-bridge-red text-white hover:from-bridge-blue/90 hover:to-bridge-red/90 shadow-md hover:shadow-lg rounded-full px-3 py-1.5 text-sm leading-tight transition-all w-auto min-w-0"
+                          disabled={loadingStatus}
+                        >
+                          לכניסה
+                          <ArrowLeft className="h-3.5 w-3.5 ml-1 transition-transform duration-200 group-hover:-translate-x-0.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent dir="rtl">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>אישור מימוש שובר</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            האם את/ה בטוח/ה שברצונך לממש את השובר ל"{event.name}"? לאחר המימוש, השובר יסומן כ"נוצל" במכשיר זה.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>לא</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => redeemEvent(key, event.name)}>כן</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               </div>
             </div>
