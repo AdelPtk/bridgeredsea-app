@@ -9,7 +9,8 @@ import { useEffect } from "react";
 import Papa from "papaparse";
 // קריאת DATA.csv מה-public
 import { toast } from "@/hooks/use-toast";
-import { upsertParticipantAndSeedEvents, getYearKey } from "@/services/participants";
+import { upsertParticipantAndSeedEvents, getYearKey, getEventRedemptionStats } from "@/services/participants";
+import { eventColorMap } from "@/lib/eventColors";
 import { removeEventForAllParticipants } from "@/services/participants";
 
 const Index = () => {
@@ -18,6 +19,8 @@ const Index = () => {
   const [csvParticipants, setCsvParticipants] = useState<any[]>([]);
   const [syncingAll, setSyncingAll] = useState(false);
   const [removingWow, setRemovingWow] = useState(false);
+  const [stats, setStats] = useState<Record<string, { redeemedParticipants: number; redeemedAdults: number }>>({});
+  const [loadingStats, setLoadingStats] = useState(false);
 
   // קריאה ופרסינג של DATA.csv מה-public
   useEffect(() => {
@@ -35,6 +38,22 @@ const Index = () => {
       .catch(() => {
         setCsvParticipants([]);
       });
+  }, []);
+
+  // Load admin stats
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoadingStats(true);
+        const year = getYearKey();
+        const agg = await getEventRedemptionStats(year);
+        setStats(agg);
+      } catch (e) {
+        // ignore errors in admin panel silently
+      } finally {
+        setLoadingStats(false);
+      }
+    })();
   }, []);
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,8 +166,8 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Main Card */}
-        <Card className="w-full max-w-md mx-auto border-2 border-bridge-blue/20 shadow-xl">
+  {/* Main Card */}
+  <Card className="w-full max-w-md mx-auto border-2 border-bridge-blue/20 shadow-xl overflow-hidden rounded-lg">
           <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
             <CardTitle className="text-center text-xl font-bold">
               כניסה למערכת
@@ -156,6 +175,24 @@ const Index = () => {
           </CardHeader>
           <CardContent className="p-6 space-y-6">
             {/* טופס מזהה משתתף הוסר לפי בקשת המשתמש */}
+
+            {/* כפתור גישה למסך הזנת קוד (ENTER) */}
+            <div className="space-y-2">
+              <Button
+                className="w-full bg-gradient-to-r from-bridge-blue to-bridge-red text-white hover:from-bridge-blue/90 hover:to-bridge-red/90 shadow-md hover:shadow-lg"
+                onClick={() => navigate("/events?id=ENTER")}
+              >
+                הזנת קוד משתתף
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full border-bridge-blue text-bridge-blue hover:bg-bridge-blue hover:text-white"
+                onClick={() => navigate("/admin")}
+              >
+                דשבורד ניהול
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">לצוות: מעבר למסך הזנת קוד משתתף (6 ספרות)</p>
+            </div>
 
             {/* אזור העלאת קובץ CSV */}
             {/* הצגת משתתפים מתוך DATA.csv */}
@@ -178,9 +215,7 @@ const Index = () => {
                 >
                   {removingWow ? "מסיר WOW מכל המשתתפים…" : "הסר WOW מכל המשתתפים (DEV)"}
                 </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                  הפעולה יוצרת/מעדכנת מסמכי משתתפים ותת-אירועים לפי DATA.csv עבור השנה הפעילה.
-                </p>
+                
               </div>
             )}
 
@@ -207,6 +242,37 @@ const Index = () => {
                 )}
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Admin: Event Redemption Stats */}
+        <Card className="w-full max-w-2xl mx-auto border-2 border-bridge-blue/20 shadow-lg bg-white rounded-lg overflow-hidden" dir="rtl">
+          <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
+            <CardTitle className="text-center text-xl font-bold">סטטיסטיקת כניסה לפי אירוע</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            {loadingStats ? (
+              <p className="text-center text-muted-foreground">טוען נתונים…</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {Object.keys(stats).length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center col-span-full">אין נתונים זמינים עדיין.</p>
+                ) : (
+                  Object.keys(stats)
+                    .sort((a, b) => a.localeCompare(b))
+                    .map((eventKey) => (
+                      <div
+                        key={eventKey}
+                        className="rounded-md border p-3"
+                        style={{ backgroundColor: eventColorMap[eventKey] || "#F5F5F5" }}
+                      >
+                        <div className="font-medium">{eventKey}</div>
+                        {/* quantitative info removed per request */}
+                      </div>
+                    ))
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 

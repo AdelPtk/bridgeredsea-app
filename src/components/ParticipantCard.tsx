@@ -10,7 +10,7 @@ interface ParticipantCardProps {
 
 const ParticipantCard = ({ participant }: ParticipantCardProps) => {
   return (
-    <Card className="w-full max-w-2xl mx-auto border-2 border-bridge-blue/20 shadow-lg bg-white rounded-t-lg" dir="rtl">
+    <Card className="w-full max-w-2xl mx-auto border-2 border-bridge-blue/20 shadow-lg bg-white rounded-lg overflow-hidden" dir="rtl">
       <CardHeader className="bg-[#1b248b] text-white">
         <CardTitle className="text-center text-2xl font-bold">
           פרטי משתתף

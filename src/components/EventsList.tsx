@@ -23,6 +23,7 @@ import {
   fetchEventsStatus,
   setEventRedeemed,
 } from "@/services/participants";
+import { redeemOnce } from "@/services/redemptions";
 // Icons not used in UI anymore; keeping icon names only as strings in mapping
 
 interface EventsListProps {
@@ -198,6 +199,20 @@ const EventsList = ({ participant }: EventsListProps) => {
     const year = getYearKey();
     try {
       await setEventRedeemed(year, pid, eventKey, true);
+      // Best-effort: also write a top-level redemptions log (idempotent per participant+event)
+      try {
+        await redeemOnce(pid, eventKey, {
+          year,
+          eventName,
+          participantName: (participant as any).NAME,
+          hotel: (participant as any).HOTEL,
+        });
+      } catch (e: any) {
+        // Ignore duplicate redemption error; surface others silently
+        if (!(e && String(e.message || e).includes("already-redeemed"))) {
+          // no-op; logging can be added if needed
+        }
+      }
       setRedeemedMap((prev) => ({ ...prev, [eventKey]: true }));
       toast({ title: "השובר נוצל", description: `${eventName} סומן כנוצל בהצלחה` });
     } catch (e: any) {
@@ -234,7 +249,7 @@ const EventsList = ({ participant }: EventsListProps) => {
           overflow: -moz-scrollbars-none;
         }
       `}</style>
-      <Card className="rounded-t-lg">
+      <Card className="rounded-lg overflow-hidden">
         <CardHeader className="bg-[#e7354b] text-white">
           <CardTitle className="text-center text-2xl font-bold">
             פרטי אירועים
