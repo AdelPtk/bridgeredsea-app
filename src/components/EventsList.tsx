@@ -21,8 +21,9 @@ import {
   getYearKey,
   upsertParticipantAndSeedEvents,
   fetchEventsStatus,
-  setEventRedeemed,
+  redeemEventAdults,
 } from "@/services/participants";
+import { Input } from "@/components/ui/input";
 import { redeemOnce } from "@/services/redemptions";
 // Icons not used in UI anymore; keeping icon names only as strings in mapping
 
@@ -33,6 +34,7 @@ interface EventsListProps {
 const EventsList = ({ participant }: EventsListProps) => {
   const [redeemedMap, setRedeemedMap] = useState<Record<string, boolean>>({});
   const [quantityMap, setQuantityMap] = useState<Record<string, number>>({});
+  const [consumedMap, setConsumedMap] = useState<Record<string, number>>({});
   const [loadingStatus, setLoadingStatus] = useState<boolean>(true);
 
   // Very light pastel rainbow-like colors (strongly mixed with white)
@@ -173,12 +175,15 @@ const EventsList = ({ participant }: EventsListProps) => {
         if (!cancelled) {
           const rMap: Record<string, boolean> = {};
           const qMap: Record<string, number> = {};
+          const cMap: Record<string, number> = {};
           for (const [k, st] of Object.entries(statuses)) {
             rMap[k] = st.redeemed;
             qMap[k] = st.quantity;
+            cMap[k] = st.consumed ?? 0;
           }
           setRedeemedMap(rMap);
           setQuantityMap(qMap);
+          setConsumedMap(cMap);
         }
       } catch (e) {
         if (!cancelled) {
@@ -193,12 +198,12 @@ const EventsList = ({ participant }: EventsListProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participant.ID]);
 
-  const redeemEvent = async (eventKey: string, eventName: string) => {
+  const redeemEvent = async (eventKey: string, eventName: string, count: number) => {
     const pid = String(participant.ID ?? (participant as any).id ?? (participant as any)["מזהה"] ?? "").trim();
     if (!pid) return;
     const year = getYearKey();
     try {
-      await setEventRedeemed(year, pid, eventKey, true);
+      await redeemEventAdults(year, pid, eventKey, count);
       // Best-effort: also write a top-level redemptions log (idempotent per participant+event)
       try {
         await redeemOnce(pid, eventKey, {
@@ -213,8 +218,15 @@ const EventsList = ({ participant }: EventsListProps) => {
           // no-op; logging can be added if needed
         }
       }
-      setRedeemedMap((prev) => ({ ...prev, [eventKey]: true }));
-      toast({ title: "השובר נוצל", description: `${eventName} סומן כנוצל בהצלחה` });
+      // update local state: increase consumed and mark redeemed when reached quantity
+      setConsumedMap((prev) => {
+        const current = prev[eventKey] ?? 0;
+        const next = Math.max(0, Math.min((quantityMap[eventKey] ?? 1), current + count));
+        const r = next >= (quantityMap[eventKey] ?? 1);
+        setRedeemedMap((rm) => ({ ...rm, [eventKey]: r }));
+        return { ...prev, [eventKey]: next };
+      });
+      toast({ title: "נרשמה כניסה", description: `עודכנה כניסה (${count}) ל- ${eventName}` });
     } catch (e: any) {
       toast({ title: "שגיאה", description: "אירעה שגיאה בעת סימון השובר", variant: "destructive" });
     }
@@ -269,6 +281,7 @@ const EventsList = ({ participant }: EventsListProps) => {
             .map(([key, event]) => {
               const bgColor = eventColorMap[key] ?? pastelBGs[0];
               const isRedeemed = redeemedMap[key];
+              const remaining = Math.max(0, (quantityMap[key] ?? 1) - (consumedMap[key] ?? 0));
               return (
             <div
               key={key}
@@ -303,27 +316,46 @@ const EventsList = ({ participant }: EventsListProps) => {
                 </div>
                 {/* Left-side action button */}
                 <div className="flex-shrink-0 self-center">
-                  {!isRedeemed && (
+      {!isRedeemed && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
                           className="group bg-gradient-to-r from-bridge-blue to-bridge-red text-white hover:from-bridge-blue/90 hover:to-bridge-red/90 shadow-md hover:shadow-lg rounded-full px-3 py-1.5 text-sm leading-tight transition-all w-auto min-w-0"
-                          disabled={loadingStatus}
+        disabled={loadingStatus || remaining <= 0}
                         >
                           לכניסה
                           <ArrowLeft className="h-3.5 w-3.5 ml-1 transition-transform duration-200 group-hover:-translate-x-0.5" />
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent dir="rtl">
+                       <AlertDialogContent dir="rtl">
                         <AlertDialogHeader>
-                          <AlertDialogTitle>אישור מימוש שובר</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            האם את/ה בטוח/ה שברצונך לממש את השובר ל"{event.name}"? לאחר המימוש, השובר יסומן כ"נוצל" במכשיר זה.
+                           <AlertDialogTitle className="text-center">אישור מימוש שובר</AlertDialogTitle>
+                          <AlertDialogDescription className="space-y-3 text-center">
+                            <div>בחר/י כמות מבוגרים שנכנסת לאירוע:</div>
+                            <div className="flex items-center justify-center gap-2">
+                              <Input
+                                type="number"
+                                min={1}
+                                max={remaining}
+                                defaultValue={remaining}
+                                className="w-20 text-center"
+                                id={`qty-${key}`}
+                              />
+                              <span className="text-xs text-muted-foreground">נכנסים {remaining} מתוך {remaining}</span>
+                            </div>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>לא</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => redeemEvent(key, event.name)}>כן</AlertDialogAction>
+                          <AlertDialogAction
+                            onClick={() => {
+                              const input = document.getElementById(`qty-${key}`) as HTMLInputElement | null;
+                              const val = Math.max(1, Math.min(remaining, Number(input?.value || 1)));
+                              redeemEvent(key, event.name, val);
+                            }}
+                          >
+                            כן
+                          </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>

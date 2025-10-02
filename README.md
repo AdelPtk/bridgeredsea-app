@@ -1,3 +1,20 @@
+## DOCX → PDF (LibreOffice CLI)
+
+For local/offline conversion using LibreOffice (higher fidelity than browser canvas in many cases):
+
+Prerequisites:
+- Install LibreOffice (soffice) and ensure it is available in PATH (Windows: add soffice.exe folder to PATH).
+
+Usage:
+- Place your input DOCX somewhere (e.g., `public/participantCardPDF.docx`).
+- Run:
+
+```powershell
+npm run docx:pdf -- public/participantCardPDF.docx out/participant-card.pdf
+```
+
+This uses `libreoffice-convert` under the hood (`server/docx_to_pdf.js`).
+
 # Welcome to your Lovable project
 
 ## Project info

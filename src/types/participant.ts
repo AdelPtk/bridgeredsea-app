@@ -7,6 +7,7 @@ export interface Participant {
   // Guest details (displayed at top)
   RESERVATION_NUM: string;
   NAME: string;
+  PARTNER?: string;
   HOTEL: string;
   ADULTS: number;
   START: string;

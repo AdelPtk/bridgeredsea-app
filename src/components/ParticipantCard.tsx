@@ -3,12 +3,16 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Users, MapPin, Ticket } from "lucide-react";
 import { User } from "lucide-react";
 import { Participant } from "@/types/participant";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { generateParticipantDocxFromParticipant, generateParticipantPdfSimple } from "@/lib/participantCardPdf";
 
 interface ParticipantCardProps {
   participant: Participant;
 }
 
 const ParticipantCard = ({ participant }: ParticipantCardProps) => {
+  const { toast } = useToast();
   return (
     <Card className="w-full max-w-2xl mx-auto border-2 border-bridge-blue/20 shadow-lg bg-white rounded-lg overflow-hidden" dir="rtl">
       <CardHeader className="bg-[#1b248b] text-white">
@@ -17,6 +21,7 @@ const ParticipantCard = ({ participant }: ParticipantCardProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-6 space-y-4">
+  {/* PDF button temporarily removed to avoid extra spacing */}
   <div className="grid grid-cols-2 gap-4">
           <div className="flex items-center gap-3">
             <Ticket className="text-bridge-blue h-5 w-5" />
@@ -30,7 +35,11 @@ const ParticipantCard = ({ participant }: ParticipantCardProps) => {
             <User className="text-bridge-red h-5 w-5" />
             <div>
               <p className="text-sm text-muted-foreground">שם</p>
-              <p className="font-semibold text-bridge-black">{participant.NAME}</p>
+              <p className="font-semibold text-bridge-black">
+                {participant.PARTNER && String(participant.PARTNER).trim().length > 0
+                  ? `${participant.NAME}, ${participant.PARTNER}`
+                  : participant.NAME}
+              </p>
             </div>
           </div>
           

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getYearKey, getEventRedemptionStats, listRedeemedForEvent, setEventRedeemed, getEventTotalsForEvent } from "@/services/participants";
+import { getYearKey, getEventRedemptionStats, listRedeemedForEvent, setEventRedeemed, getEventTotalsForEvent, clearRedemptionLogsForParticipant } from "@/services/participants";
 import { eventColorMap } from "@/lib/eventColors";
 import { X } from "lucide-react";
 
@@ -67,7 +67,9 @@ export default function AdminDashboard() {
 
   const unredeem = async (participantId: string) => {
     if (!selectedEvent) return;
+  // Clear event state and related log entries for this participant/event
     await setEventRedeemed(getYearKey(), participantId, selectedEvent, false);
+  await clearRedemptionLogsForParticipant(getYearKey(), participantId, selectedEvent);
     // local refresh
     await loadEntries(selectedEvent);
     setRefreshKey((k) => k + 1);
@@ -208,7 +210,7 @@ export default function AdminDashboard() {
                             <td className="p-2 text-center whitespace-nowrap">{formatDate(e.redeemedAt)}</td>
                             <td className="p-2 text-center whitespace-nowrap">{formatTime(e.redeemedAt)}</td>
                             <td className="p-2 text-center whitespace-nowrap">{e.participantId}</td>
-                            <td className="p-2 text-center whitespace-nowrap">{e.quantity ?? ""}</td>
+                            <td className="p-2 text-center whitespace-nowrap">{e.entryCount ?? e.quantity ?? ""}</td>
                             <td className="p-2 text-center truncate" title={e.participantName ?? ""}>{e.participantName ?? ""}</td>
                             <td className="p-2 text-center whitespace-nowrap">
                               <Button variant="destructive" size="sm" onClick={() => unredeem(e.participantId)} aria-label="בטל">
