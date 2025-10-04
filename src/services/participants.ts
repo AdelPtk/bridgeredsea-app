@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase";
-import { collection, collectionGroup, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, runTransaction, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, collectionGroup, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, runTransaction, addDoc, serverTimestamp, orderBy, limit } from "firebase/firestore";
 import type { Participant } from "@/types/participant";
 
 export const getYearKey = () =>
@@ -23,11 +23,57 @@ export type EventStatus = {
   redeemed: boolean;
   quantity: number;
   consumed?: number; // redeemed adults so far
+  redeemedAt?: string; // ISO timestamp when fully redeemed
+  finalized?: boolean; // final voucher used
 };
 export type EventAggregate = {
   redeemedParticipants: number; // number of redeemed participant-docs
   redeemedAdults: number; // sum of quantity for redeemed docs
 };
+
+// Admin-configured schedule per event (global, per year)
+export type EventSchedule = {
+  date?: string;      // YYYY-MM-DD
+  openTime?: string;  // HH:MM 24h
+  closeTime?: string; // HH:MM 24h
+};
+
+const eventScheduleDocRef = (year: string, eventKey: string) =>
+  doc(db, "years", year, "eventSchedules", eventKey);
+
+/** Get all event schedules for a year */
+export async function getEventSchedules(year: string): Promise<Record<string, EventSchedule>> {
+  if (!db) return {};
+  const col = collection(db, "years", year, "eventSchedules");
+  const snap = await getDocs(col);
+  const out: Record<string, EventSchedule> = {};
+  snap.forEach((d) => {
+    out[d.id] = d.data() as EventSchedule;
+  });
+  return out;
+}
+
+/** Get a single event schedule */
+export async function getEventSchedule(year: string, eventKey: string): Promise<EventSchedule | null> {
+  if (!db) return null;
+  const ref = eventScheduleDocRef(year, eventKey);
+  const snap = await getDoc(ref);
+  return snap.exists() ? ((snap.data() as EventSchedule) ?? null) : null;
+}
+
+/** Set/Update an event schedule */
+export async function setEventSchedule(year: string, eventKey: string, schedule: EventSchedule): Promise<void> {
+  if (!db) return;
+  const ref = eventScheduleDocRef(year, eventKey);
+  await setDoc(ref, { ...schedule }, { merge: true });
+}
+
+/** Clear an event schedule */
+export async function clearEventSchedule(year: string, eventKey: string): Promise<void> {
+  if (!db) return;
+  const ref = eventScheduleDocRef(year, eventKey);
+  await setDoc(ref, { date: null, openTime: null, closeTime: null }, { merge: true });
+}
 
 /** Ensure participant doc exists with full CSV row, and seed event docs if missing. */
 export async function upsertParticipantAndSeedEvents(
@@ -66,6 +112,7 @@ export async function upsertParticipantAndSeedEvents(
         quantity: e.quantity ?? qty,
         consumed: 0,
         redeemed: false,
+        finalized: false,
         year, // add year to support collectionGroup admin queries
         participantId: pid,
         _createdAt: new Date().toISOString(),
@@ -80,6 +127,7 @@ export async function upsertParticipantAndSeedEvents(
       if (!data.eventKey) patch.eventKey = e.key;
       if (!data.year) patch.year = year;
       if (!data.participantId) patch.participantId = pid;
+      if (typeof (data as any).finalized !== "boolean") patch.finalized = false;
       if (Object.keys(patch).length) await setDoc(eRef, patch, { merge: true });
     }
   }
@@ -110,6 +158,8 @@ export async function fetchEventsStatus(
       redeemed: consumed >= qty || Boolean(d.redeemed),
       quantity: qty,
       consumed,
+  redeemedAt: typeof d.redeemedAt === "string" ? d.redeemedAt : undefined,
+  finalized: Boolean((d as any).finalized),
     };
   });
   // Fill requested keys; assume defaults for missing
@@ -166,6 +216,29 @@ export async function setEventRedeemed(
     }
   } catch {}
   // Ensure dashboard reads fresh data after a write
+  invalidateCachesForEvent(year, eventKey);
+}
+
+/** Set final voucher usage (no further use allowed) */
+export async function setEventFinalized(
+  year: string,
+  participantId: string,
+  eventKey: string,
+  finalized: boolean
+) {
+  if (!db) return;
+  const pid = String(participantId).trim();
+  const ref = eventDocRef(year, pid, eventKey);
+  await setDoc(
+    ref,
+    {
+      finalized,
+      finalizedAt: finalized ? new Date().toISOString() : null,
+      year,
+      participantId: pid,
+    },
+    { merge: true }
+  );
   invalidateCachesForEvent(year, eventKey);
 }
 
@@ -496,4 +569,113 @@ export async function getEventTotalsForEvent(year: string, eventKey: string, opt
   }
   _totalsCache.set(cacheKey, { when: now, data: totals });
   return totals;
+}
+
+/** Get status for a single participant's event (includes finalized flag) */
+export async function getEventStatusForParticipant(
+  year: string,
+  participantId: string,
+  eventKey: string
+): Promise<EventStatus> {
+  const pid = String(participantId).trim();
+  if (!db || !pid) return { redeemed: false, quantity: 1 };
+  const ref = doc(db, "years", year, "participants", pid, "events", eventKey);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return { redeemed: false, quantity: 1 };
+  const d = snap.data() as any;
+  const qty = typeof d.quantity === "number" ? d.quantity : 1;
+  const consumed = typeof d.consumed === "number" ? d.consumed : (d.redeemed ? qty : 0);
+  return {
+    redeemed: consumed >= qty || Boolean(d.redeemed),
+    quantity: qty,
+    consumed,
+    redeemedAt: typeof d.redeemedAt === "string" ? d.redeemedAt : undefined,
+    finalized: Boolean(d.finalized),
+  };
+}
+
+// ---- Participants directory helpers for Admin "Participant Management" ----
+
+export type BasicParticipant = {
+  id: string;
+  name?: string;
+  hotel?: string;
+  adults?: number;
+};
+
+/** Fetch a participant document */
+export async function getParticipant(year: string, participantId: string): Promise<any | null> {
+  if (!db) return null;
+  const pid = String(participantId || "").trim();
+  if (!pid) return null;
+  const ref = doc(db, "years", year, "participants", pid);
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data() : null;
+}
+
+/** Search participants by exact ID or by name prefix (HEB/ENG) */
+export async function searchParticipants(year: string, term: string): Promise<BasicParticipant[]> {
+  if (!db) return [];
+  const q = (term || "").trim();
+  if (!q) return [];
+  const out: BasicParticipant[] = [];
+
+  // Try exact ID first
+  try {
+    const idRef = doc(db, "years", year, "participants", q);
+    const idSnap = await getDoc(idRef);
+    if (idSnap.exists()) {
+      const d = idSnap.data() as any;
+      out.push({ id: idSnap.id, name: d.NAME ?? d.name, hotel: d.HOTEL ?? d.hotel, adults: Number(d.ADULTS ?? d.adults) || 1 });
+    }
+  } catch {}
+
+  // Name prefix search (requires index on NAME)
+  try {
+    const col = collection(db, "years", year, "participants");
+    const q1 = query(col, orderBy("NAME"), where("NAME", ">=", q), where("NAME", "<=", q + "\uf8ff"), limit(10));
+    const snap = await getDocs(q1);
+    snap.forEach((d) => {
+      if (!out.find((p) => p.id === d.id)) {
+        const v = d.data() as any;
+        out.push({ id: d.id, name: v.NAME ?? v.name, hotel: v.HOTEL ?? v.hotel, adults: Number(v.ADULTS ?? v.adults) || 1 });
+      }
+    });
+  } catch {}
+
+  return out;
+}
+
+export type ParticipantEventRow = {
+  eventKey: string;
+  name?: string;
+  quantity: number;
+  consumed: number;
+  redeemed: boolean;
+  finalized?: boolean;
+};
+
+/** List all event rows for a specific participant */
+export async function listEventsForParticipant(year: string, participantId: string): Promise<ParticipantEventRow[]> {
+  if (!db) return [];
+  const pid = String(participantId || "").trim();
+  if (!pid) return [];
+  const col = collection(db, "years", year, "participants", pid, "events");
+  const snap = await getDocs(col);
+  const rows: ParticipantEventRow[] = [];
+  snap.forEach((docSnap) => {
+    const d = docSnap.data() as any;
+    const qty = typeof d.quantity === "number" ? d.quantity : 1;
+    const consumed = typeof d.consumed === "number" ? d.consumed : (d.redeemed ? qty : 0);
+    rows.push({
+      eventKey: docSnap.id,
+      name: d.name,
+      quantity: qty,
+      consumed,
+      redeemed: consumed >= qty || Boolean(d.redeemed),
+      finalized: Boolean(d.finalized),
+    });
+  });
+  // Keep a stable event order by key for nicer display
+  return rows.sort((a, b) => a.eventKey.localeCompare(b.eventKey));
 }

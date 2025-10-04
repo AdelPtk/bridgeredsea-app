@@ -2,25 +2,21 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import BridgeSymbols from "@/components/BridgeSymbols";
 import { useState } from "react";
 import { useEffect } from "react";
 import Papa from "papaparse";
 // קריאת DATA.csv מה-public
 import { toast } from "@/hooks/use-toast";
-import { upsertParticipantAndSeedEvents, getYearKey, getEventRedemptionStats } from "@/services/participants";
-import { eventColorMap } from "@/lib/eventColors";
-import { removeEventForAllParticipants } from "@/services/participants";
+import { upsertParticipantAndSeedEvents, getYearKey } from "@/services/participants";
+import { useLang } from "@/hooks/use-lang";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { isEnglish, toggle } = useLang();
   const [participantId, setParticipantId] = useState("");
   const [csvParticipants, setCsvParticipants] = useState<any[]>([]);
   const [syncingAll, setSyncingAll] = useState(false);
-  const [removingWow, setRemovingWow] = useState(false);
-  const [stats, setStats] = useState<Record<string, { redeemedParticipants: number; redeemedAdults: number }>>({});
-  const [loadingStats, setLoadingStats] = useState(false);
 
   // קריאה ופרסינג של DATA.csv מה-public
   useEffect(() => {
@@ -40,21 +36,7 @@ const Index = () => {
       });
   }, []);
 
-  // Load admin stats
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoadingStats(true);
-        const year = getYearKey();
-        const agg = await getEventRedemptionStats(year);
-        setStats(agg);
-      } catch (e) {
-        // ignore errors in admin panel silently
-      } finally {
-        setLoadingStats(false);
-      }
-    })();
-  }, []);
+  // Removed home-page stats widget per request
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,32 +119,28 @@ const Index = () => {
     }
   };
 
-  const handleRemoveWowForAll = async () => {
-    try {
-      setRemovingWow(true);
-      const year = getYearKey();
-      const count = await removeEventForAllParticipants(year, "WOW");
-      toast({ title: "WOW הוסר", description: `הוסר למשתתפים (${count}).` });
-    } catch (e) {
-      toast({ title: "שגיאה", description: String(e), variant: "destructive" });
-    } finally {
-      setRemovingWow(false);
-    }
-  };
+  // Removed WOW bulk-remove handler per request
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-bridge-blue/5 to-bridge-red/5" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-background via-bridge-blue/5 to-bridge-red/5" dir={isEnglish ? "ltr" : "rtl"}>
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* Header */}
         <div className="text-center space-y-4">
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={toggle}>
+              {isEnglish ? "עברית" : "English"}
+            </Button>
+          </div>
           <BridgeSymbols />
           <img
-            src="/RedSea-MainText-HEB.svg"
-            alt="פסטיבל ברידג' ים האדום"
+            src={(typeof window !== 'undefined' && window.location.protocol === 'file:'
+              ? (isEnglish ? "RedSea-MainText-ENG.svg" : "RedSea-MainText-HEB.svg")
+              : (isEnglish ? "/RedSea-MainText-ENG.svg" : "/RedSea-MainText-HEB.svg"))}
+            alt={isEnglish ? "Red Sea Bridge Festival" : "פסטיבל ברידג' ים האדום"}
             className="mx-auto mb-4 max-w-xs h-auto"
           />
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            ברוכים הבאים למערכת השוברים הדיגיטלית של פסטיבל הברידג' באילת
+            {isEnglish ? "Welcome to the Red Sea Bridge Festival digital vouchers system" : "ברוכים הבאים למערכת השוברים הדיגיטלית של פסטיבל הברידג' באילת"}
           </p>
         </div>
 
@@ -207,14 +185,6 @@ const Index = () => {
                 >
                   {syncingAll ? "מסנכרן את כל המשתתפים…" : "סנכרון כל המשתתפים ל-Firestore (DEV)"}
                 </Button>
-                <Button
-                  variant="outline"
-                  className="w-full border-bridge-blue text-bridge-blue hover:bg-bridge-blue hover:text-white"
-                  onClick={handleRemoveWowForAll}
-                  disabled={removingWow}
-                >
-                  {removingWow ? "מסיר WOW מכל המשתתפים…" : "הסר WOW מכל המשתתפים (DEV)"}
-                </Button>
                 
               </div>
             )}
@@ -245,36 +215,7 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        {/* Admin: Event Redemption Stats */}
-        <Card className="w-full max-w-2xl mx-auto border-2 border-bridge-blue/20 shadow-lg bg-white rounded-lg overflow-hidden" dir="rtl">
-          <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
-            <CardTitle className="text-center text-xl font-bold">סטטיסטיקת כניסה לפי אירוע</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            {loadingStats ? (
-              <p className="text-center text-muted-foreground">טוען נתונים…</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {Object.keys(stats).length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center col-span-full">אין נתונים זמינים עדיין.</p>
-                ) : (
-                  Object.keys(stats)
-                    .sort((a, b) => a.localeCompare(b))
-                    .map((eventKey) => (
-                      <div
-                        key={eventKey}
-                        className="rounded-md border p-3"
-                        style={{ backgroundColor: eventColorMap[eventKey] || "#F5F5F5" }}
-                      >
-                        <div className="font-medium">{eventKey}</div>
-                        {/* quantitative info removed per request */}
-                      </div>
-                    ))
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+  {/* Stats card removed per request */}
 
         {/* Footer */}
         <div className="text-center pt-8">
