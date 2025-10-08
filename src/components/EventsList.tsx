@@ -28,6 +28,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { redeemOnce } from "@/services/redemptions";
 // Icons not used in UI anymore; keeping icon names only as strings in mapping
+// Assets for bottom links grid
+import logoBooklet from "../../LOGO_BOOKLET25.png";
+import logoWA from "../../LOGO_WA.png";
+import logoRS from "../../LOGO_RS_BLUE.png";
+import logoFB from "../../LOGO_FB.png";
 
 interface EventsListProps {
   participant: Participant;
@@ -90,7 +95,7 @@ const EventsList = ({ participant }: EventsListProps) => {
       icon: "Crown",
       date: "15/11/2025 19:00",
       location: "חדר אוכל רויאל ביץ'",
-      locationEn: "Royal Beach Dining Hall"
+      locationEn: "Royal Beach Dining Hall",
     },
     TERRACE1: {
       name: "שעה ים תיכונית",
@@ -158,7 +163,7 @@ const EventsList = ({ participant }: EventsListProps) => {
       location: "מרפסת לובי רויאל ביץ'",
       locationEn: "Royal Beach Lobby Terrace",
     },
-  PRIZES: {
+    PRIZES: {
       name: "טקס פרסים",
       nameEn: "Awards Ceremony",
       value: participant.PRIZES,
@@ -440,16 +445,16 @@ const EventsList = ({ participant }: EventsListProps) => {
                                       {isEnglish ? "Entrance system verification ✓" : "אימות מערכת בכניסה ✓"}
                                     </Button>
                                   </AlertDialogTrigger>
-                                  <AlertDialogContent dir={isEnglish ? 'ltr' : 'rtl'}>
+                                  <AlertDialogContent dir={isEnglish ? 'ltr' : 'rtl'} className="sm:max-w-md">
                                     <AlertDialogHeader>
-                                      <AlertDialogTitle className="text-center">{isEnglish ? "Dear guest, do not press this button" : "אורח יקר, אין ללחוץ על כפתור זה"}</AlertDialogTitle>
-                                      <AlertDialogDescription className="text-center">
+                                      <AlertDialogTitle className="text-center text-xl">{isEnglish ? "Dear guest, do not press this button" : "אורח יקר, אין ללחוץ על כפתור זה"}</AlertDialogTitle>
+                                      <AlertDialogDescription className="text-center text-lg">
                                         {isEnglish ? "Finalize voucher usage?" : "מימוש סופי של השובר?"}
                                       </AlertDialogDescription>
                                     </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>{isEnglish ? 'No' : 'לא'}</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => finalizeVoucher(key)}>{isEnglish ? 'Yes' : 'כן'}</AlertDialogAction>
+                                    <AlertDialogFooter className="flex w-full justify-center gap-3">
+                                      <AlertDialogCancel className="w-28 justify-center">{isEnglish ? 'No' : 'לא'}</AlertDialogCancel>
+                                      <AlertDialogAction className="w-28 justify-center" onClick={() => finalizeVoucher(key)}>{isEnglish ? 'Yes' : 'כן'}</AlertDialogAction>
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
                                 </AlertDialog>
@@ -491,10 +496,10 @@ const EventsList = ({ participant }: EventsListProps) => {
                             )}
                           </Button>
                         </AlertDialogTrigger>
-                        <AlertDialogContent dir={isEnglish ? "ltr" : "rtl"}>
+                        <AlertDialogContent dir={isEnglish ? "ltr" : "rtl"} className="sm:max-w-md">
                           <AlertDialogHeader>
-                            <AlertDialogTitle className="text-center">{isEnglish ? "Confirm redemption" : "אישור מימוש שובר"}</AlertDialogTitle>
-                            <AlertDialogDescription className="space-y-3 text-center">
+                            <AlertDialogTitle className="text-center text-xl">{isEnglish ? "Confirm redemption" : "אישור מימוש שובר"}</AlertDialogTitle>
+                            <AlertDialogDescription className="space-y-3 text-center text-lg">
                               <div>{isEnglish ? "Select number of adults entering the event:" : "בחר/י כמות מבוגרים שנכנסים לאירוע:"}</div>
                               <div className="flex items-center justify-center gap-2">
                                 <Input
@@ -509,9 +514,9 @@ const EventsList = ({ participant }: EventsListProps) => {
                               </div>
                             </AlertDialogDescription>
                           </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{isEnglish ? "No" : "לא"}</AlertDialogCancel>
-                            <AlertDialogAction
+                          <AlertDialogFooter className="flex w-full justify-center gap-3">
+                            <AlertDialogCancel className="w-28 justify-center">{isEnglish ? "No" : "לא"}</AlertDialogCancel>
+                            <AlertDialogAction className="w-28 justify-center"
                               onClick={() => {
                                 const input = document.getElementById(`banner-qty-${key}`) as HTMLInputElement | null;
                                 const val = Math.max(1, Math.min(remaining, Number(input?.value || 1)));
@@ -532,12 +537,7 @@ const EventsList = ({ participant }: EventsListProps) => {
           })}
         </div>
       )}
-      {/* Language toggle */}
-      <div className="flex justify-end">
-  <Button variant="outline" size="sm" onClick={toggle}>
-          {isEnglish ? "עברית" : "English"}
-        </Button>
-      </div>
+      {/* Language toggle moved to ParticipantPage header */}
       {/* Completely hide the scrollbar for the AnimatedList container */}
       <style>{`
         .animated-list-scrollbar::-webkit-scrollbar {
@@ -646,10 +646,10 @@ const EventsList = ({ participant }: EventsListProps) => {
                           )}
                         </Button>
                       </AlertDialogTrigger>
-                       <AlertDialogContent dir={isEnglish ? "ltr" : "rtl"}>
+                       <AlertDialogContent dir={isEnglish ? "ltr" : "rtl"} className="sm:max-w-md">
                         <AlertDialogHeader>
-                           <AlertDialogTitle className="text-center">{isEnglish ? "Confirm redemption" : "אישור מימוש שובר"}</AlertDialogTitle>
-                          <AlertDialogDescription className="space-y-3 text-center">
+                           <AlertDialogTitle className="text-center text-xl">{isEnglish ? "Confirm redemption" : "אישור מימוש שובר"}</AlertDialogTitle>
+                          <AlertDialogDescription className="space-y-3 text-center text-lg">
                             <div>{isEnglish ? "Select number of adults entering the event:" : "בחר/י כמות מבוגרים שנכנסת לאירוע:"}</div>
                             <div className="flex items-center justify-center gap-2">
                               <Input
@@ -664,9 +664,9 @@ const EventsList = ({ participant }: EventsListProps) => {
                             </div>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>{isEnglish ? "No" : "לא"}</AlertDialogCancel>
-                          <AlertDialogAction
+                        <AlertDialogFooter className="flex w-full justify-center gap-3">
+                          <AlertDialogCancel className="w-28 justify-center">{isEnglish ? "No" : "לא"}</AlertDialogCancel>
+                          <AlertDialogAction className="w-28 justify-center"
                             onClick={() => {
                               const input = document.getElementById(`qty-${key}`) as HTMLInputElement | null;
                               const val = Math.max(1, Math.min(remaining, Number(input?.value || 1)));
@@ -690,10 +690,58 @@ const EventsList = ({ participant }: EventsListProps) => {
         displayScrollbar={true}
         className="animated-list-scrollbar"
       />
+      {/* Useful links grid - 2x2 with images and captions */}
+      <Card className="rounded-lg overflow-hidden border border-bridge-blue/20 bg-white">
+        <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
+          <CardTitle className="text-center text-2xl font-bold">
+            {isEnglish ? "Useful Links" : "קישורים שימושיים"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 gap-6">
+            {/* TL - Booklet */}
+            <div className="flex flex-col items-center text-center">
+              <a href="https://online.anyflip.com/wsbi/yfqs/mobile/index.html" target="_blank" rel="noopener noreferrer" className="block">
+                <img src={logoBooklet} alt="Festival Booklet" className="h-20 w-20 object-contain mx-auto" />
+              </a>
+              <a href="https://online.anyflip.com/wsbi/yfqs/mobile/index.html" target="_blank" rel="noopener noreferrer" className="mt-2 text-xs text-muted-foreground hover:underline">
+                {isEnglish ? "View the festival booklet" : "לצפייה בחוברת הפסטיבל לחצו כאן"}
+              </a>
+            </div>
+            {/* TR - WhatsApp */}
+            <div className="flex flex-col items-center text-center">
+              <a href="https://chat.whatsapp.com/JBiL4ycstf13J0zPn4MOwp" target="_blank" rel="noopener noreferrer" className="block">
+                <img src={logoWA} alt="Festival WhatsApp Group" className="h-20 w-20 object-contain mx-auto" />
+              </a>
+              <a href="https://chat.whatsapp.com/JBiL4ycstf13J0zPn4MOwp" target="_blank" rel="noopener noreferrer" className="mt-2 text-xs text-muted-foreground hover:underline">
+                {isEnglish ? "Join the festival WhatsApp group" : "להצטרפות לקבוצת הוואטסאפ של הפסטיבל לחצו כאן"}
+              </a>
+            </div>
+            {/* BL - Website */}
+            <div className="flex flex-col items-center text-center">
+              <a href="https://www.bridgeredsea.com/" target="_blank" rel="noopener noreferrer" className="block">
+                <img src={logoRS} alt="Festival Website" className="h-20 w-20 object-contain mx-auto" />
+              </a>
+              <a href="https://www.bridgeredsea.com/" target="_blank" rel="noopener noreferrer" className="mt-2 text-xs text-muted-foreground hover:underline">
+                {isEnglish ? "Visit the festival website" : "לצפייה באתר הפסטיבל"}
+              </a>
+            </div>
+            {/* BR - Facebook */}
+            <div className="flex flex-col items-center text-center">
+              <a href="https://www.facebook.com/profile.php?id=100064564367174" target="_blank" rel="noopener noreferrer" className="block">
+                <img src={logoFB} alt="Festival Facebook Page" className="h-20 w-20 object-contain mx-auto" />
+              </a>
+              <a href="https://www.facebook.com/profile.php?id=100064564367174" target="_blank" rel="noopener noreferrer" className="mt-2 text-xs text-muted-foreground hover:underline">
+                {isEnglish ? "Visit the festival Facebook page" : "לצפייה בעמוד הפייסבוק של הפסטיבל"}
+              </a>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       {/* Blocked redemption dialog */}
       {blockedInfo?.open && (
         <AlertDialog open={blockedInfo.open} onOpenChange={(v) => setBlockedInfo(v ? blockedInfo : null)}>
-          <AlertDialogContent dir={isEnglish ? "ltr" : "rtl"}>
+          <AlertDialogContent dir={isEnglish ? "ltr" : "rtl"} className="sm:max-w-md">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-center">
                 {isEnglish ? "Voucher can only be redeemed during the event time" : "ניתן לממש את השובר רק בשעת האירוע!"}
@@ -716,8 +764,8 @@ const EventsList = ({ participant }: EventsListProps) => {
                 })()}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogAction onClick={() => setBlockedInfo(null)}>
+            <AlertDialogFooter className="flex w-full justify-center gap-3">
+              <AlertDialogAction className="w-28 justify-center" onClick={() => setBlockedInfo(null)}>
                 {isEnglish ? "OK" : "אישור"}
               </AlertDialogAction>
             </AlertDialogFooter>

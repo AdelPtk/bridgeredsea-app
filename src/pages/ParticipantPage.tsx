@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import Papa from "papaparse";
 import ParticipantCard from "@/components/ParticipantCard";
@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLang } from "@/hooks/use-lang";
+import SiteFooter from "@/components/SiteFooter";
 
 const ParticipantPage = () => {
   const [searchParams] = useSearchParams();
@@ -18,9 +20,23 @@ const ParticipantPage = () => {
   const isEnterMode = id.trim().toUpperCase() === "ENTER";
   const [enteredId, setEnteredId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const { isEnglish, setLang } = useLang();
+
+  // Banner image source: mirrors Index behavior; supports file:// from dist
+  const bannerSrc = useMemo(() => {
+    try {
+      const isFile = typeof window !== "undefined" && window.location?.protocol === "file:";
+      const base = isFile ? "" : "/";
+      return `${base}${isEnglish ? "RedSea-MainText-ENG.svg" : "RedSea-MainText-HEB.svg"}`;
+    } catch {
+      return isEnglish ? "/RedSea-MainText-ENG.svg" : "/RedSea-MainText-HEB.svg";
+    }
+  }, [isEnglish]);
 
   useEffect(() => {
     if (isEnterMode) {
+      // Default to Hebrew when no participant context
+      try { setLang("he"); } catch {}
       setLoading(false);
       return;
     }
@@ -45,6 +61,14 @@ const ParticipantPage = () => {
       .catch(() => setLoading(false));
   }, [id, isEnterMode]);
 
+  // Set language based on participant.HUL: YES -> English, otherwise Hebrew
+  useEffect(() => {
+    if (participant) {
+      const hul = String((participant as any).HUL ?? "").trim().toUpperCase();
+      try { setLang(hul === "YES" ? "en" : "he"); } catch {}
+    }
+  }, [participant, setLang]);
+
   const handleEnterSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const value = enteredId.trim();
@@ -59,12 +83,12 @@ const ParticipantPage = () => {
 
   if (isEnterMode) {
     return (
-      <div className="min-h-screen bg-white" dir="rtl">
-        <div className="container mx-auto px-4 py-8 max-w-md space-y-8">
+      <div className="min-h-screen bg-white" dir={isEnglish ? "ltr" : "rtl"}>
+        <div className="container mx-auto px-4 py-8 max-w-md space-y-6">
           <div className="flex justify-center mb-6">
-            <img src="/RedSea-MainText-HEB.svg" alt="RedSea Bridge Festival" className="max-h-24 w-auto" />
+            <img src={bannerSrc} alt="RedSea Bridge Festival" className="max-h-24 w-auto" />
           </div>
-          <Card className="border-2 border-bridge-blue/20 shadow-xl overflow-hidden rounded-lg">
+          <Card className="border border-bridge-blue/20 shadow-xl overflow-hidden rounded-lg">
             <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
               <CardTitle className="text-center text-xl font-bold">כניסה עם קוד משתתף</CardTitle>
             </CardHeader>
@@ -87,6 +111,7 @@ const ParticipantPage = () => {
               </form>
             </CardContent>
           </Card>
+          <SiteFooter />
         </div>
       </div>
     );
@@ -101,14 +126,16 @@ const ParticipantPage = () => {
 
   return (
   
-    <div className="min-h-screen bg-white" dir="rtl">
-      <div className="container mx-auto px-4 py-8 max-w-2xl space-y-8">
+    <div className="min-h-screen bg-white" dir={isEnglish ? "ltr" : "rtl"}>
+      <div className="container mx-auto px-4 py-8 max-w-2xl space-y-6">
         {/* תמונת לוגו בראש העמוד */}
         <div className="flex justify-center mb-6">
-          <img src="/RedSea-MainText-HEB.svg" alt="RedSea Bridge Festival" className="max-h-24 w-auto" />
+          <img src={bannerSrc} alt="RedSea Bridge Festival" className="max-h-24 w-auto" />
         </div>
+        {/* Language toggling is automatic based on participant.HUL */}
   <ParticipantCard participant={participant} />
         <EventsList participant={participant} />
+        <SiteFooter />
       </div>
     </div>
   );

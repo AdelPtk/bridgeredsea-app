@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import BridgeSymbols from "@/components/BridgeSymbols";
+import SiteFooter from "@/components/SiteFooter";
 import { useState } from "react";
 import { useEffect } from "react";
 import Papa from "papaparse";
@@ -221,6 +222,7 @@ const Index = () => {
         <div className="text-center pt-8">
           <BridgeSymbols className="opacity-50" />
         </div>
+        <SiteFooter />
       </div>
     </div>
   );

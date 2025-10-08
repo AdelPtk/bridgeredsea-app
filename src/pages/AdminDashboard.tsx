@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getYearKey, getEventRedemptionStats, listRedeemedForEvent, setEventRedeemed, getEventTotalsForEvent, clearRedemptionLogsForParticipant, getEventSchedule, setEventSchedule, type EventSchedule, getEventStatusForParticipant, searchParticipants, listEventsForParticipant, setEventFinalized } from "@/services/participants";
 import { eventColorMap } from "@/lib/eventColors";
 import { X } from "lucide-react";
+import SiteFooter from "@/components/SiteFooter";
 
 const eventNameMap: Record<string, string> = {
   OPENING: "קוקטייל פתיחת הפסטיבל",
@@ -470,6 +471,7 @@ export default function AdminDashboard() {
             </Tabs>
           </CardContent>
         </Card>
+        <SiteFooter />
       </div>
     </div>
   );

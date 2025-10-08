@@ -40,7 +40,7 @@ const ParticipantCard = ({ participant }: ParticipantCardProps) => {
     const rawHotel = normalizeHotel(participant.HOTEL);
     const hotelDisplay = isEnglish ? (hotelEnMap[rawHotel] || rawHotel) : rawHotel;
   return (
-    <Card className="w-full max-w-2xl mx-auto border-2 border-bridge-blue/20 shadow-lg bg-white rounded-lg overflow-hidden" dir={isEnglish ? "ltr" : "rtl"}>
+    <Card className="w-full max-w-2xl mx-auto border border-bridge-blue/20 shadow-lg bg-white rounded-lg overflow-hidden" dir={isEnglish ? "ltr" : "rtl"}>
       <CardHeader className="bg-[#1b248b] text-white">
         <CardTitle className="text-center text-2xl font-bold">
             {labels.title}
