@@ -128,9 +128,11 @@ const ParticipantPage = () => {
   
     <div className="min-h-screen bg-white" dir={isEnglish ? "ltr" : "rtl"}>
       <div className="container mx-auto px-4 py-8 max-w-2xl space-y-6">
-        {/* תמונת לוגו בראש העמוד */}
-        <div className="flex justify-center mb-6">
-          <img src={bannerSrc} alt="RedSea Bridge Festival" className="max-h-24 w-auto" />
+        {/* תמונת לוגו בראש העמוד - סטיקי למעלה */}
+        <div className="sticky top-0 z-50 -mx-4 px-4 pt-2 pb-3 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b">
+          <div className="flex justify-center">
+            <img src={bannerSrc} alt="RedSea Bridge Festival" className="max-h-24 w-auto" />
+          </div>
         </div>
         {/* Language toggling is automatic based on participant.HUL */}
   <ParticipantCard participant={participant} />

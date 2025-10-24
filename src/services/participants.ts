@@ -36,6 +36,7 @@ export type EventSchedule = {
   date?: string;      // YYYY-MM-DD
   openTime?: string;  // HH:MM 24h
   closeTime?: string; // HH:MM 24h
+  requireVerification?: boolean; // if true, show finalize button in EventsList
 };
 
 const eventScheduleDocRef = (year: string, eventKey: string) =>
@@ -300,6 +301,48 @@ export async function clearRedemptionLogsForParticipant(
   }
   invalidateCachesForEvent(year, eventKey);
   return n;
+}
+/** Update the eligible quantity for a participant's event.
+ * - Stores NON-NEGATIVE INTEGERS only (fractions are not allowed)
+ * - Ensures consumed <= quantity
+ * - Updates redeemed flag to consumed >= quantity
+ */
+export async function setParticipantEventQuantity(
+  year: string,
+  participantId: string,
+  eventKey: string,
+  quantity: number
+): Promise<void> {
+  if (!db) return;
+  const pid = String(participantId).trim();
+  const ref = eventDocRef(year, pid, eventKey);
+  // Coerce to a non-negative integer
+  const num = Number.isFinite(quantity as any) ? Number(quantity) : 0;
+  const newQty = Math.max(0, Math.floor(num));
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const d = snap.exists() ? (snap.data() as any) : {};
+    const prevQty = typeof d.quantity === "number" ? d.quantity : 1;
+    const prevConsumed = typeof d.consumed === "number" ? d.consumed : (d.redeemed ? prevQty : 0);
+    const nextConsumed = Math.min(prevConsumed, newQty);
+    const redeemed = nextConsumed >= newQty && newQty > 0 ? true : false;
+    const patch: any = {
+      year,
+      participantId: pid,
+      eventKey,
+      quantity: newQty,
+      consumed: nextConsumed,
+      redeemed,
+    };
+    // If newly redeemed and no timestamp recorded, set redeemedAt. If no longer redeemed, clear it.
+    if (redeemed) {
+      if (!d.redeemedAt) patch.redeemedAt = new Date().toISOString();
+    } else {
+      patch.redeemedAt = null;
+    }
+    tx.set(ref, patch, { merge: true });
+  });
+  invalidateCachesForEvent(year, eventKey);
 }
 /** Remove a specific event doc for all participants in a year. Returns number of participants processed. */
 export async function removeEventForAllParticipants(year: string, eventKey: string): Promise<number> {

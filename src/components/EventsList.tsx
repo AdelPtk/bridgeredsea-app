@@ -18,7 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { useLang } from "@/hooks/use-lang";
 import { Participant, EventInfo } from "@/types/participant";
-import { getEventSchedule, type EventSchedule, setEventFinalized } from "@/services/participants";
+import { getEventSchedule, getEventSchedules, type EventSchedule, setEventFinalized } from "@/services/participants";
 import {
   getYearKey,
   upsertParticipantAndSeedEvents,
@@ -79,8 +79,8 @@ const EventsList = ({ participant }: EventsListProps) => {
       name: "קוקטייל פתיחת הפסטיבל",
       nameEn: "Festival Opening Cocktail",
       value: participant.OPENING,
-      description: "טקס פתיחה חגיגי של הפסטיבל",
-      descriptionEn: "Festive opening ceremony of the festival",
+      description: "אירוע פתיחה חגיגי של הפסטיבל",
+      descriptionEn: "Festive opening of the festival",
       icon: "PartyPopper",
       date: "13/11/2025 19:00",
       location: "מרפסת לובי רויאל ביץ'",
@@ -94,15 +94,15 @@ const EventsList = ({ participant }: EventsListProps) => {
       descriptionEn: "For guests of the Royal Beach Hotel",
       icon: "Crown",
       date: "15/11/2025 19:00",
-      location: "חדר אוכל רויאל ביץ'",
-      locationEn: "Royal Beach Dining Hall",
+      location: "מסעדת לובי רויאל ביץ'",
+      locationEn: "Royal Beach Lobby Restaurant",
     },
     TERRACE1: {
       name: "שעה ים תיכונית",
       nameEn: "Mediterranean Hour",
       value: participant.TERRACE1,
-      description: "ארוחת צהריים קלילה ומתוקה",
-      descriptionEn: "A light and sweet lunch",
+      description: "טעמים מן הים התיכון",
+      descriptionEn: "Mediterranean Flavors",
       icon: "Utensils",
       date: "16/11/2025 19:00",
       location: "מרפסת לובי רויאל ביץ'",
@@ -115,7 +115,7 @@ const EventsList = ({ participant }: EventsListProps) => {
       description: "יין, מרקים, גבינות ומאפים",
       descriptionEn: "Wine, soups, cheeses, and pastries",
       icon: "Wine",
-      date: "17/11/2025 15:00",
+      date: "17/11/2025 23:30",
       location: "מרפסת לובי רויאל ביץ'",
       locationEn: "Royal Beach Lobby Terrace",
     },
@@ -134,8 +134,8 @@ const EventsList = ({ participant }: EventsListProps) => {
       name: "שעה מתוקה",
       nameEn: "Sweet Hour",
       value: participant.TERRACE2,
-      description: "ארוחת צהריים קלילה ומתוקה",
-      descriptionEn: "A light and sweet lunch",
+      description: "נשנוש קליל ומתוק",
+      descriptionEn: "A light and sweet snack",
       icon: "Crown",
       date: "20/11/2025 15:00",
       location: "מרפסת לובי רויאל ביץ'",
@@ -149,15 +149,15 @@ const EventsList = ({ participant }: EventsListProps) => {
       descriptionEn: "For guests of the Royal Beach Hotel",
       icon: "Utensils",
       date: "20/11/2025 19:00/20:30",
-      location: "חדר אוכל רויאל ביץ'",
-      locationEn: "Royal Beach Dining Hall",
+      location: "מסעדת לובי רויאל ביץ'",
+      locationEn: "Royal Beach Lobby Restaurant",
     },
     TERRACE3: {
       name: "שעה בלקנית",
       nameEn: "Balkan Hour",
       value: participant.TERRACE3,
-      description: "ארוחת צהריים קלילה ומתוקה",
-      descriptionEn: "A light and sweet lunch",
+      description: "טעימות מן הבלקן",
+      descriptionEn: "Balkan Tasting",
       icon: "Sparkles",
       date: "21/11/2025 15:00",
       location: "מרפסת לובי רויאל ביץ'",
@@ -186,19 +186,28 @@ const EventsList = ({ participant }: EventsListProps) => {
   // Track which events are currently active according to schedule
   const [activeEventKeys, setActiveEventKeys] = useState<string[]>([]);
   useEffect(() => {
-    (async () => {
+    let cancelled = false;
+    const loadOnce = async () => {
       try {
         const year = getYearKey();
-        const out: Record<string, EventSchedule> = {};
+        const all = await getEventSchedules(year);
+        if (cancelled) return;
+        const onlyNeeded: Record<string, EventSchedule> = {};
         for (const [k] of availableEvents) {
-          const sch = await getEventSchedule(year, k);
-          if (sch) out[k] = sch;
+          if (all[k]) onlyNeeded[k] = all[k];
         }
-        setSchedules(out);
+        setSchedules(onlyNeeded);
       } catch {}
-    })();
+    };
+    loadOnce();
+    // Periodically refresh schedules so Admin changes appear without reload
+    const iv = setInterval(loadOnce, 30_000);
+    // Refresh when page regains focus
+    const onFocus = () => loadOnce();
+    window.addEventListener('focus', onFocus);
+    return () => { cancelled = true; clearInterval(iv); window.removeEventListener('focus', onFocus); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [participant.ID]);
+  }, [participant.ID, availableEvents.length]);
 
   // Helper: is the event active now according to schedule
   const isNowWithin = (sch?: EventSchedule | null) => {
@@ -213,6 +222,18 @@ const EventsList = ({ participant }: EventsListProps) => {
     const end = new Date(Date.UTC(y, m - 1, d, ch, cm, 0));
     const nowUTC = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
     return nowUTC >= start && nowUTC <= end;
+  };
+
+  // Helper: has the event ended (current time strictly after close time)?
+  const isEnded = (sch?: EventSchedule | null) => {
+    if (!sch || !sch.date || !sch.openTime || !sch.closeTime) return false;
+    const now = new Date();
+    const [y, m, d] = sch.date.split("-").map(Number);
+    const [ch, cm] = sch.closeTime.split(":").map(Number);
+    if (!y || !m || !d || ch == null || cm == null) return false;
+    const end = new Date(Date.UTC(y, m - 1, d, ch, cm, 0));
+    const nowUTC = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    return nowUTC > end;
   };
 
   // Recompute active events periodically
@@ -437,7 +458,7 @@ const EventsList = ({ participant }: EventsListProps) => {
                           <>
           <div className="mb-1 font-bold">{isEnglish ? "Entry recorded" : "בוצעה כניסה"} - {timeText}</div>
               <div className="text-base font-semibold">{isEnglish ? "Number of adults" : "כמות מבוגרים"} - {sessionCount}</div>
-                            {!isFinalized && (
+                            {!isFinalized && (schedules[key]?.requireVerification ?? false) && (
                               <div className="mt-3">
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
@@ -452,8 +473,8 @@ const EventsList = ({ participant }: EventsListProps) => {
                                         {isEnglish ? "Finalize voucher usage?" : "מימוש סופי של השובר?"}
                                       </AlertDialogDescription>
                                     </AlertDialogHeader>
-                                    <AlertDialogFooter className="flex w-full justify-center gap-3">
-                                      <AlertDialogCancel className="w-28 justify-center">{isEnglish ? 'No' : 'לא'}</AlertDialogCancel>
+                                    <AlertDialogFooter className="flex !flex-row w-full justify-center gap-3">
+                                      <AlertDialogCancel className="w-28 justify-center !mt-0">{isEnglish ? 'No' : 'לא'}</AlertDialogCancel>
                                       <AlertDialogAction className="w-28 justify-center" onClick={() => finalizeVoucher(key)}>{isEnglish ? 'Yes' : 'כן'}</AlertDialogAction>
                                     </AlertDialogFooter>
                                   </AlertDialogContent>
@@ -514,8 +535,8 @@ const EventsList = ({ participant }: EventsListProps) => {
                               </div>
                             </AlertDialogDescription>
                           </AlertDialogHeader>
-                          <AlertDialogFooter className="flex w-full justify-center gap-3">
-                            <AlertDialogCancel className="w-28 justify-center">{isEnglish ? "No" : "לא"}</AlertDialogCancel>
+                          <AlertDialogFooter className="flex !flex-row w-full justify-center gap-3">
+                            <AlertDialogCancel className="w-28 justify-center !mt-0">{isEnglish ? "No" : "לא"}</AlertDialogCancel>
                             <AlertDialogAction className="w-28 justify-center"
                               onClick={() => {
                                 const input = document.getElementById(`banner-qty-${key}`) as HTMLInputElement | null;
@@ -567,10 +588,10 @@ const EventsList = ({ participant }: EventsListProps) => {
           // Sort so redeemed events appear at the bottom; preserve relative order within groups
           [...availableEvents]
             .sort(([keyA], [keyB]) => {
-              const aRedeemed = !!redeemedMap[keyA];
-              const bRedeemed = !!redeemedMap[keyB];
-              if (aRedeemed === bRedeemed) return 0;
-              return aRedeemed ? 1 : -1;
+              const aBottom = !!redeemedMap[keyA] || isEnded(schedules[keyA]);
+              const bBottom = !!redeemedMap[keyB] || isEnded(schedules[keyB]);
+              if (aBottom === bBottom) return 0;
+              return aBottom ? 1 : -1; // push ended or redeemed to the bottom
             })
             .map(([key, event]) => {
               const bgColor = eventColorMap[key] ?? pastelBGs[0];
@@ -578,7 +599,9 @@ const EventsList = ({ participant }: EventsListProps) => {
               const qty = quantityMap[key] ?? 1;
               const consumed = consumedMap[key] ?? 0;
               const fullyRedeemed = consumed >= qty;
-              const isRedeemed = fullyRedeemed; // keep old badge behavior
+              const isRedeemed = fullyRedeemed; // "Redeemed" badge only for actual redeemed
+              const ended = isEnded(schedules[key]);
+              const isDeprioritized = isRedeemed || ended; // grey-out when redeemed or ended
               const remaining = Math.max(0, qty - consumed);
               const displayName = isEnglish ? (event as any).nameEn : event.name;
               const displayDesc = isEnglish ? (event as any).descriptionEn : event.description;
@@ -586,7 +609,7 @@ const EventsList = ({ participant }: EventsListProps) => {
               return (
             <div
               key={key}
-              className={`rounded-xl shadow-sm p-4 mb-4 border border-black/5 ${isRedeemed ? "opacity-70" : ""}`}
+              className={`rounded-xl shadow-sm p-4 mb-4 border border-black/5 ${isDeprioritized ? "opacity-70" : ""}`}
               style={{ backgroundColor: bgColor }}
             >
               <div className={`flex items-start gap-4 ${isEnglish ? 'flex-row' : 'flex-row'}`}>
@@ -664,8 +687,8 @@ const EventsList = ({ participant }: EventsListProps) => {
                             </div>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <AlertDialogFooter className="flex w-full justify-center gap-3">
-                          <AlertDialogCancel className="w-28 justify-center">{isEnglish ? "No" : "לא"}</AlertDialogCancel>
+                        <AlertDialogFooter className="flex !flex-row w-full justify-center gap-3">
+                          <AlertDialogCancel className="w-28 justify-center !mt-0">{isEnglish ? "No" : "לא"}</AlertDialogCancel>
                           <AlertDialogAction className="w-28 justify-center"
                             onClick={() => {
                               const input = document.getElementById(`qty-${key}`) as HTMLInputElement | null;

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getYearKey, getEventRedemptionStats, listRedeemedForEvent, setEventRedeemed, getEventTotalsForEvent, clearRedemptionLogsForParticipant, getEventSchedule, setEventSchedule, type EventSchedule, getEventStatusForParticipant, searchParticipants, listEventsForParticipant, setEventFinalized } from "@/services/participants";
+import { getYearKey, getEventRedemptionStats, listRedeemedForEvent, setEventRedeemed, getEventTotalsForEvent, clearRedemptionLogsForParticipant, getEventSchedule, setEventSchedule, type EventSchedule, getEventStatusForParticipant, searchParticipants, listEventsForParticipant, setEventFinalized, setParticipantEventQuantity } from "@/services/participants";
 import { eventColorMap } from "@/lib/eventColors";
 import { X } from "lucide-react";
 import SiteFooter from "@/components/SiteFooter";
@@ -46,6 +47,8 @@ export default function AdminDashboard() {
   const [selectedPid, setSelectedPid] = useState<string | null>(null);
   const [participantRows, setParticipantRows] = useState<Array<{ eventKey: string; name?: string; quantity: number; consumed: number; redeemed: boolean; finalized?: boolean }>>([]);
   const [loadingParticipantRows, setLoadingParticipantRows] = useState(false);
+  const [qtyEdits, setQtyEdits] = useState<Record<string, string>>({});
+  const [savingQty, setSavingQty] = useState<Record<string, boolean>>({});
 
   const orderedKeys = useMemo(() => (
     ["OPENING","RB1","TERRACE1","SOUPS","COCKTAIL","TERRACE2","RB2","TERRACE3","PRIZES"]
@@ -119,6 +122,10 @@ export default function AdminDashboard() {
     try {
       const rows = await listEventsForParticipant(getYearKey(), pid);
       setParticipantRows(rows);
+      // Initialize edit fields with current quantities
+      const init: Record<string, string> = {};
+      rows.forEach(r => { init[r.eventKey] = String(r.quantity); });
+      setQtyEdits(init);
     } finally {
       setLoadingParticipantRows(false);
     }
@@ -135,6 +142,29 @@ export default function AdminDashboard() {
   const toggleFinalizeForParticipant = async (pid: string, eventKey: string, finalized: boolean) => {
     await setEventFinalized(getYearKey(), pid, eventKey, finalized);
     await loadParticipantEvents(pid);
+  };
+
+  // Parse quantity input: integers only (non-negative)
+  const parseQuantityInput = (val: string): number | null => {
+    if (!val) return null;
+    const s = val.trim();
+    if (!/^\d+$/.test(s)) return null; // only digits allowed
+    const n = Number(s);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return Math.floor(n);
+  };
+
+  const saveQuantityForRow = async (pid: string, eventKey: string) => {
+    const raw = qtyEdits[eventKey] ?? "";
+    const parsed = parseQuantityInput(raw);
+    if (parsed === null || parsed < 0) return; // ignore invalid
+    setSavingQty((m) => ({ ...m, [eventKey]: true }));
+    try {
+      await setParticipantEventQuantity(getYearKey(), pid, eventKey, parsed);
+      await loadParticipantEvents(pid);
+    } finally {
+      setSavingQty((m) => ({ ...m, [eventKey]: false }));
+    }
   };
 
   const formatDate = (iso?: string) => {
@@ -161,6 +191,36 @@ export default function AdminDashboard() {
     const mm = parts.find(p => p.type === "minute")?.value ?? "00";
     // Show HH:MM (hours first)
     return `${hh}:${mm}`;
+  };
+
+  // Helpers to compute date/time strings in Asia/Jerusalem for schedule presets
+  const getJerusalemParts = (d: Date) => {
+    const fmt = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Jerusalem',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+    const parts = fmt.formatToParts(d);
+    const val = (t: string) => parts.find(p => p.type === t)?.value ?? '';
+    return {
+      y: val('year'),
+      m: val('month'),
+      d: val('day'),
+      hh: val('hour'),
+      mm: val('minute'),
+    };
+  };
+
+  const presetNowPlus2h = () => {
+    const now = new Date();
+    const end = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    const a = getJerusalemParts(now);
+    const b = getJerusalemParts(end);
+    return {
+      date: `${a.y}-${a.m}-${a.d}`,
+      openTime: `${a.hh}:${a.mm}`,
+      closeTime: `${b.hh}:${b.mm}`,
+    } as EventSchedule;
   };
 
   return (
@@ -258,7 +318,42 @@ export default function AdminDashboard() {
                       />
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center justify-center gap-3 pt-3">
+                    <Switch
+                      checked={!!schedule?.requireVerification}
+                      onCheckedChange={(val) => setSchedule((s) => ({ ...(s ?? {}), requireVerification: !!val }))}
+                      id="requireVerification"
+                    />
+                    <label htmlFor="requireVerification" className="text-sm select-none cursor-pointer">
+                      ביצוע אימות מערכת בכניסה
+                    </label>
+                  </div>
+                  <div className="flex flex-col items-center gap-2 pt-2">
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button variant="secondary"
+                        onClick={async () => {
+                          if (!selectedEvent) return;
+                          const cleared: EventSchedule = { date: "", openTime: "", closeTime: "", requireVerification: schedule?.requireVerification };
+                          setSavingSchedule(true);
+                          try {
+                            await setEventSchedule(getYearKey(), selectedEvent, cleared);
+                            setSchedule(cleared);
+                          } finally { setSavingSchedule(false); }
+                        }}
+                      >
+                        הסר שעות מהאירוע (לא ייחשב "הסתיים")
+                      </Button>
+                      <Button variant="secondary"
+                        onClick={async () => {
+                          if (!selectedEvent) return;
+                          const preset = { ...presetNowPlus2h(), requireVerification: schedule?.requireVerification } as EventSchedule;
+                          setSchedule(preset);
+                        }}
+                      >
+                        קבע לשעה זו ועד +שעתיים
+                      </Button>
+                    </div>
+                    <div className="flex gap-2 justify-center">
                     <Button
                       onClick={async () => {
                         if (!selectedEvent || !schedule) return;
@@ -273,6 +368,7 @@ export default function AdminDashboard() {
                     >
                       {savingSchedule ? "שומר…" : "שמור הגדרות"}
                     </Button>
+                    </div>
                   </div>
                 </div>
                 {loadingEntries ? (
@@ -435,7 +531,31 @@ export default function AdminDashboard() {
                                 <td className="p-2 text-right whitespace-nowrap" title={row.name ?? row.eventKey}>
                                   {row.name ?? row.eventKey}
                                 </td>
-                                <td className="p-2 text-center whitespace-nowrap">{row.quantity}</td>
+                                <td className="p-2 text-center whitespace-nowrap">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      step={1}
+                                      min={0}
+                                      pattern="\\d*"
+                                      className="w-20 border rounded px-2 py-1 text-center"
+                                      value={qtyEdits[row.eventKey] ?? ""}
+                                      onChange={(e) => {
+                                        const v = e.target.value;
+                                        // Keep only digits in state for smoother UX
+                                        const cleaned = v.replace(/[^0-9]/g, "");
+                                        setQtyEdits((m) => ({ ...m, [row.eventKey]: cleaned }));
+                                      }}
+                                    />
+                                    <Button size="sm"
+                                      onClick={() => saveQuantityForRow(selectedPid!, row.eventKey)}
+                                      disabled={!!savingQty[row.eventKey] || parseQuantityInput(qtyEdits[row.eventKey] ?? "") === null}
+                                    >
+                                      {savingQty[row.eventKey] ? "שומר…" : "שמור"}
+                                    </Button>
+                                  </div>
+                                </td>
                                 <td className="p-2 text-center whitespace-nowrap">{row.consumed}</td>
                                 <td className="p-2 text-center whitespace-nowrap">
                                   <span className={`inline-flex h-6 min-w-10 items-center justify-center rounded px-2 text-xs ${row.redeemed ? 'bg-green-100 text-green-800' : 'bg-muted text-muted-foreground'}`}>

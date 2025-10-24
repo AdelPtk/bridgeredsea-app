@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import BridgeSymbols from "@/components/BridgeSymbols";
 import SiteFooter from "@/components/SiteFooter";
 import { useState } from "react";
 import { useEffect } from "react";
@@ -10,11 +9,10 @@ import Papa from "papaparse";
 // קריאת DATA.csv מה-public
 import { toast } from "@/hooks/use-toast";
 import { upsertParticipantAndSeedEvents, getYearKey } from "@/services/participants";
-import { useLang } from "@/hooks/use-lang";
+// Home page is Hebrew-only per request
 
 const Index = () => {
   const navigate = useNavigate();
-  const { isEnglish, toggle } = useLang();
   const [participantId, setParticipantId] = useState("");
   const [csvParticipants, setCsvParticipants] = useState<any[]>([]);
   const [syncingAll, setSyncingAll] = useState(false);
@@ -123,25 +121,19 @@ const Index = () => {
   // Removed WOW bulk-remove handler per request
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-bridge-blue/5 to-bridge-red/5" dir={isEnglish ? "ltr" : "rtl"}>
+    <div className="min-h-screen bg-gradient-to-br from-background via-bridge-blue/5 to-bridge-red/5" dir="rtl">
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* Header */}
         <div className="text-center space-y-4">
-          <div className="flex justify-end">
-            <Button variant="outline" size="sm" onClick={toggle}>
-              {isEnglish ? "עברית" : "English"}
-            </Button>
-          </div>
-          <BridgeSymbols />
           <img
             src={(typeof window !== 'undefined' && window.location.protocol === 'file:'
-              ? (isEnglish ? "RedSea-MainText-ENG.svg" : "RedSea-MainText-HEB.svg")
-              : (isEnglish ? "/RedSea-MainText-ENG.svg" : "/RedSea-MainText-HEB.svg"))}
-            alt={isEnglish ? "Red Sea Bridge Festival" : "פסטיבל ברידג' ים האדום"}
+              ? "RedSea-MainText-HEB.svg"
+              : "/RedSea-MainText-HEB.svg")}
+            alt="פסטיבל ברידג' ים האדום"
             className="mx-auto mb-4 max-w-xs h-auto"
           />
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {isEnglish ? "Welcome to the Red Sea Bridge Festival digital vouchers system" : "ברוכים הבאים למערכת השוברים הדיגיטלית של פסטיבל הברידג' באילת"}
+            ברוכים הבאים למערכת השוברים הדיגיטלית של פסטיבל הברידג' באילת
           </p>
         </div>
 
@@ -219,9 +211,6 @@ const Index = () => {
   {/* Stats card removed per request */}
 
         {/* Footer */}
-        <div className="text-center pt-8">
-          <BridgeSymbols className="opacity-50" />
-        </div>
         <SiteFooter />
       </div>
     </div>

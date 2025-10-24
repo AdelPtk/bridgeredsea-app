@@ -9,7 +9,8 @@ const Switch = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SwitchPrimitives.Root
     className={cn(
-      "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+      // MUI iOS-like: 42x26 track, 2px padding, 22px thumb; ON should slide left in RTL
+      "peer inline-flex h-[26px] w-[42px] shrink-0 cursor-pointer items-center rounded-full p-[2px] overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-500 data-[state=checked]:bg-[#65C466] data-[state=unchecked]:bg-[#E9E9EA]",
       className
     )}
     {...props}
@@ -17,7 +18,10 @@ const Switch = React.forwardRef<
   >
     <SwitchPrimitives.Thumb
       className={cn(
-        "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
+        // 22px thumb moves exactly 16px inside 42px track with 2px padding
+        "pointer-events-none block h-[22px] w-[22px] rounded-full bg-white shadow-lg ring-0 transition-transform duration-300",
+        // Always move left on ON (checked)
+        "data-[state=checked]:translate-x-0 data-[state=unchecked]:translate-x-[16px]"
       )}
     />
   </SwitchPrimitives.Root>
