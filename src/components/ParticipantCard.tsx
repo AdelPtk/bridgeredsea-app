@@ -17,7 +17,7 @@ const ParticipantCard = ({ participant }: ParticipantCardProps) => {
   const { isEnglish } = useLang();
     const labels = {
       title: isEnglish ? "Participant Details" : "פרטי משתתף",
-      reservation: isEnglish ? "Reservation Number" : "מספר הזמנה",
+      reservation: isEnglish ? "Participant ID" : "מזהה משתתף",
       name: isEnglish ? "Name" : "שם",
       hotel: isEnglish ? "Hotel" : "בית מלון",
       adults: isEnglish ? "Number of Adults" : "מספר מבוגרים",
@@ -53,7 +53,7 @@ const ParticipantCard = ({ participant }: ParticipantCardProps) => {
             <Ticket className="text-bridge-blue h-5 w-5" />
             <div>
                 <p className="text-sm text-muted-foreground">{labels.reservation}</p>
-              <p className="font-semibold text-bridge-black">{participant.RESERVATION_NUM}</p>
+              <p className="font-semibold text-bridge-black">{String((participant as any).ID ?? (participant as any).id ?? (participant as any)["מזהה"] ?? "")}</p>
             </div>
           </div>
           

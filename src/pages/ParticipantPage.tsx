@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLang } from "@/hooks/use-lang";
 import SiteFooter from "@/components/SiteFooter";
+import logoWA from "../../LOGO_WA.png";
 
 const ParticipantPage = () => {
   const [searchParams] = useSearchParams();
@@ -121,7 +122,44 @@ const ParticipantPage = () => {
     return <div className="text-center py-12">טוען נתונים...</div>;
   }
   if (!participant) {
-    return <div className="text-center py-12 text-red-600">משתתף לא נמצא</div>;
+    return (
+      <div className="min-h-screen bg-white" dir="rtl">
+        <div className="container mx-auto px-4 py-8 max-w-md space-y-6">
+          <Card className="border border-bridge-blue/20 shadow-xl overflow-hidden rounded-lg">
+            <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
+              <CardTitle className="text-center text-xl font-bold">מספר זיהוי שגוי!</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4 text-center" dir="rtl">
+              <p className="font-bold">
+                לקבלת סיוע / מספר זיהוי - ניתן להגיע לדלפק הפסטיבל
+                {" "}
+                או ליצור קשר בלחיצה
+                {" "}
+                <a
+                  href="http://wa.me/972036058355"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-600 underline"
+                >
+                  כאן
+                </a>
+              </p>
+              <div className="flex justify-center">
+                <a
+                  href="http://wa.me/972036058355"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="צור קשר ב-WhatsApp"
+                >
+                  <img src={logoWA} alt="WhatsApp" className="h-16 w-auto hover:opacity-90 transition-opacity" />
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+          <SiteFooter />
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -1,5 +1,6 @@
 import { db } from "@/lib/firebase";
 import { collection, collectionGroup, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, runTransaction, addDoc, serverTimestamp, orderBy, limit } from "firebase/firestore";
+import { incrementEventStats } from "@/services/eventStats";
 import type { Participant } from "@/types/participant";
 
 export const getYearKey = () =>
@@ -105,18 +106,24 @@ export async function upsertParticipantAndSeedEvents(
     const eRef = eventDocRef(year, pid, e.key);
     const snap = await getDoc(eRef);
     if (!snap.exists()) {
+      const eventQty = e.quantity ?? qty;
       await setDoc(eRef, {
         eventKey: e.key,
         name: e.name,
         description: e.description ?? "",
         value: e.allowedValue ?? "",
-        quantity: e.quantity ?? qty,
+        quantity: eventQty,
         consumed: 0,
         redeemed: false,
         finalized: false,
         year, // add year to support collectionGroup admin queries
         participantId: pid,
         _createdAt: new Date().toISOString(),
+      });
+      // Increment event stats: new participant eligible for this event
+      await incrementEventStats(year, e.key, { 
+        eligibleDelta: eventQty, 
+        participantsDelta: 1 
       });
     } else {
       // ensure quantity is present if previously missing
@@ -196,26 +203,29 @@ export async function setEventRedeemed(
       }
     } catch {}
   }
-  await setDoc(
-    ref,
-    {
+  // Use transaction to get before/after state, then update stats outside
+  const deltaInfo = await runTransaction(db, async (tx) => {
+    const before = await tx.get(ref);
+    const prev: any = before.exists() ? before.data() : {};
+    const qty = typeof prev.quantity === "number" ? prev.quantity : 1;
+    const prevConsumed = typeof prev.consumed === "number" ? prev.consumed : (prev.redeemed ? qty : 0);
+    const nextConsumed = redeemed ? qty : 0;
+    const patch: any = {
       redeemed,
       redeemedAt: redeemed ? new Date().toISOString() : null,
       year,
       participantId: pid,
       ...(redeemed ? snapshot : {}),
-    },
-    { merge: true }
-  );
-  try {
-    // Sync consumed to quantity (or 0) when toggling full redeemed flag
-    const evSnap = await getDoc(ref);
-    if (evSnap.exists()) {
-      const d = evSnap.data() as any;
-      const qty = typeof d.quantity === "number" ? d.quantity : 1;
-      await setDoc(ref, { consumed: redeemed ? qty : 0 }, { merge: true });
-    }
-  } catch {}
+      consumed: nextConsumed,
+    };
+    tx.set(ref, patch, { merge: true });
+    return { delta: nextConsumed - prevConsumed };
+  });
+  
+  // Update event stats OUTSIDE transaction for reliability
+  if (deltaInfo.delta !== 0) {
+    await incrementEventStats(year, eventKey, { consumedDelta: deltaInfo.delta });
+  }
   // Ensure dashboard reads fresh data after a write
   invalidateCachesForEvent(year, eventKey);
 }
@@ -243,7 +253,6 @@ export async function setEventFinalized(
   invalidateCachesForEvent(year, eventKey);
 }
 
-/** Incrementally redeem adults for an event using a transaction */
 export async function redeemEventAdults(
   year: string,
   participantId: string,
@@ -254,7 +263,7 @@ export async function redeemEventAdults(
   const pid = String(participantId).trim();
   const ref = eventDocRef(year, pid, eventKey);
   // Attempt a transactional increment
-  await runTransaction(db, async (tx) => {
+  const txResult = await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     const d = snap.exists() ? (snap.data() as any) : {};
     const qty = typeof d.quantity === "number" ? d.quantity : 1;
@@ -270,15 +279,38 @@ export async function redeemEventAdults(
     };
     if (fully && !d.redeemedAt) patch.redeemedAt = new Date().toISOString();
     tx.set(ref, patch, { merge: true });
+    return { next, qty, prev, delta: next - prev };
   });
+  
+  // Update event stats OUTSIDE transaction
+  if (txResult.delta !== 0) {
+    await incrementEventStats(year, eventKey, { consumedDelta: txResult.delta });
+  }
   // Write a log entry for admin listing (one row per increment)
   try {
+    // Best-effort denormalization to avoid N lookups during listing
+    let participantName: string | undefined;
+    let eventName: string | undefined;
+    try {
+      const pSnap = await getDoc(participantDocRef(year, pid));
+      const p = pSnap.exists() ? (pSnap.data() as any) : null;
+      participantName = p?.NAME ?? p?.name;
+    } catch {}
+    try {
+      const eSnap = await getDoc(ref);
+      const ed = eSnap.exists() ? (eSnap.data() as any) : null;
+      eventName = ed?.name;
+    } catch {}
     await addDoc(collection(db, "redemptionLogs"), {
       year,
       participantId: pid,
       eventKey,
       count: Math.max(1, Math.floor(count || 1)),
       at: serverTimestamp(),
+      participantName: participantName ?? null,
+      eventName: eventName ?? null,
+      quantity: txResult?.qty ?? null,
+      redeemedAfter: txResult ? (txResult.next >= (txResult.qty ?? 0)) : null,
     });
   } catch {}
   invalidateCachesForEvent(year, eventKey);
@@ -319,7 +351,7 @@ export async function setParticipantEventQuantity(
   // Coerce to a non-negative integer
   const num = Number.isFinite(quantity as any) ? Number(quantity) : 0;
   const newQty = Math.max(0, Math.floor(num));
-  await runTransaction(db, async (tx) => {
+  const deltaInfo = await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     const d = snap.exists() ? (snap.data() as any) : {};
     const prevQty = typeof d.quantity === "number" ? d.quantity : 1;
@@ -341,7 +373,19 @@ export async function setParticipantEventQuantity(
       patch.redeemedAt = null;
     }
     tx.set(ref, patch, { merge: true });
+    // Calculate deltas for event stats update
+    const eligibleDelta = newQty - prevQty;
+    const consumedDelta = nextConsumed - prevConsumed;
+    return { eligibleDelta, consumedDelta };
   });
+  
+  // Update event stats OUTSIDE transaction
+  if (deltaInfo.eligibleDelta !== 0 || deltaInfo.consumedDelta !== 0) {
+    await incrementEventStats(year, eventKey, { 
+      eligibleDelta: deltaInfo.eligibleDelta, 
+      consumedDelta: deltaInfo.consumedDelta 
+    });
+  }
   invalidateCachesForEvent(year, eventKey);
 }
 /** Remove a specific event doc for all participants in a year. Returns number of participants processed. */
@@ -412,6 +456,8 @@ export type RedeemedEntry = {
   quantity?: number;
   consumed?: number;
   entryCount?: number; // count for this specific log entry (for partial redemptions)
+  // Snapshot flags to avoid N lookups when listing; may be undefined for older logs
+  _redeemedFlag?: boolean;
 };
 
 // Simple in-memory caches for the session
@@ -451,28 +497,18 @@ export async function listRedeemedForEvent(year: string, eventKey: string, opts?
         participantId: pid,
         redeemedAt: at,
         entryCount: typeof d.count === "number" ? d.count : 1,
+        participantName: d.participantName ?? undefined,
+        eventName: d.eventName ?? undefined,
+        quantity: typeof d.quantity === "number" ? d.quantity : undefined,
+        // Best-effort flags snapshot
+        _redeemedFlag: typeof d.redeemedAfter === "boolean" ? d.redeemedAfter : undefined as any,
       });
     });
     if (tmp.length > 0) {
-      // Enrich missing names by fetching participant docs (cached)
-      const cache = new Map<string, any>();
-      for (const e of tmp) {
-        if (!e.participantName && e.participantId) {
-          let p = cache.get(e.participantId);
-          if (!p) {
-            const pSnap = await getDoc(participantDocRef(year, e.participantId));
-            p = pSnap.exists() ? pSnap.data() : null;
-            cache.set(e.participantId, p);
-          }
-          if (p) {
-            e.participantName = (p as any).NAME ?? (p as any).name ?? e.participantName;
-          }
-        }
-      }
-  const sorted = tmp.sort((a, b) => (a.redeemedAt || "").localeCompare(b.redeemedAt || ""));
-  _redeemedCache.set(cacheKey, { when: now, data: sorted });
-  // Do NOT seed totals cache here; let getEventTotalsForEvent compute authoritative eligible totals
-  return sorted;
+      // Avoid N lookups by using denormalized participantName when available.
+      const sorted = tmp.sort((a, b) => (a.redeemedAt || "").localeCompare(b.redeemedAt || ""));
+      _redeemedCache.set(cacheKey, { when: now, data: sorted });
+      return sorted;
     }
 
     // Fallback: derive single row from events document consumed>0
@@ -498,9 +534,9 @@ export async function listRedeemedForEvent(year: string, eventKey: string, opts?
         });
       }
     });
-    // Enrich missing names by fetching participant docs
+    // For fallback path, enrich missing names minimally
     const cache = new Map<string, any>();
-    for (const e of tmp) {
+    for (const e of tmp2) {
       if (!e.participantName && e.participantId) {
         let p = cache.get(e.participantId);
         if (!p) {
@@ -513,9 +549,8 @@ export async function listRedeemedForEvent(year: string, eventKey: string, opts?
         }
       }
     }
-    const sorted = tmp.sort((a, b) => (a.redeemedAt || "").localeCompare(b.redeemedAt || ""));
-    // Update cache
-  _redeemedCache.set(cacheKey, { when: now, data: sorted });
+    const sorted = tmp2.sort((a, b) => (a.redeemedAt || "").localeCompare(b.redeemedAt || ""));
+    _redeemedCache.set(cacheKey, { when: now, data: sorted });
     return sorted;
   } catch (e) {
     // fallback: scan per participant

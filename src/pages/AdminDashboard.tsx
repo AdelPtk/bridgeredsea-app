@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getYearKey, getEventRedemptionStats, listRedeemedForEvent, setEventRedeemed, getEventTotalsForEvent, clearRedemptionLogsForParticipant, getEventSchedule, setEventSchedule, type EventSchedule, getEventStatusForParticipant, searchParticipants, listEventsForParticipant, setEventFinalized, setParticipantEventQuantity } from "@/services/participants";
+import { getEventStats, rebuildEventStats } from "@/services/eventStats";
 import { eventColorMap } from "@/lib/eventColors";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import SiteFooter from "@/components/SiteFooter";
 
 const eventNameMap: Record<string, string> = {
@@ -34,8 +35,11 @@ export default function AdminDashboard() {
     redeemedParticipants: number;
     redeemedAdults: number;
   } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [schedule, setSchedule] = useState<EventSchedule | null>(null);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [clearingSchedule, setClearingSchedule] = useState(false);
+  const [testingSchedule, setTestingSchedule] = useState(false);
 
   // Top tab: events vs participants
   const [activeTab, setActiveTab] = useState<"events" | "participants">("events");
@@ -70,21 +74,22 @@ export default function AdminDashboard() {
     setSelectedEvent(eventKey);
     setLoadingEntries(true);
     try {
+      // Fast path: list logs directly without per-row lookups
       const list = await listRedeemedForEvent(getYearKey(), eventKey, { force: opts?.force });
-      // Enrich with status flags (redeemed/finalized) per participant/event
-      const year = getYearKey();
-      const enriched = await Promise.all(list.map(async (e: any) => {
-        const st = await getEventStatusForParticipant(year, e.participantId, eventKey);
-        return { ...e, _redeemedFlag: st.redeemed, _finalizedFlag: st.finalized ?? false };
-      }));
-      setEntries(enriched);
-      const totals = await getEventTotalsForEvent(getYearKey(), eventKey, { force: opts?.force });
-      setSelectedTotals({
-        eligibleParticipants: totals.eligibleParticipants,
-        eligibleAdults: totals.eligibleAdults,
-        redeemedParticipants: totals.redeemedParticipants,
-        redeemedAdults: totals.redeemedAdults,
-      });
+      setEntries(list);
+      // Fast counters: use precomputed eventStats
+      setStatsLoading(true);
+      try {
+        const es = await getEventStats(getYearKey(), eventKey);
+        setSelectedTotals({
+          eligibleParticipants: es.participants,
+          eligibleAdults: es.totalEligibleAdults,
+          redeemedParticipants: 0,
+          redeemedAdults: es.totalConsumedAdults,
+        });
+      } finally {
+        setStatsLoading(false);
+      }
   // Load schedule
   const sch = await getEventSchedule(getYearKey(), eventKey);
   setSchedule(sch ?? { date: "", openTime: "", closeTime: "" });
@@ -240,32 +245,103 @@ export default function AdminDashboard() {
               </div>
 
               <TabsContent value="events" className="space-y-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
+              {/* One-time initialization button - remove after running once */}
+              <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <h4 className="font-bold text-yellow-900 mb-1">🔧 אתחול מונים חד-פעמי</h4>
+                    <p className="text-sm text-yellow-800">
+                      לחץ כאן <strong>פעם אחת</strong> כדי לאתחל את המונים האוטומטיים מהנתונים הקיימים.
+                      לאחר מכן המונים יתעדכנו אוטומטית ואפשר למחוק את הכפתור הזה מהקוד.
+                    </p>
+                  </div>
+                  <Button
+                    variant="default"
+                    className="bg-yellow-600 hover:bg-yellow-700"
+                    disabled={statsLoading}
+                    onClick={async () => {
+                      if (!confirm('האם לאתחל את המונים לכל האירועים? (זה ייקח כמה שניות)')) return;
+                      setStatsLoading(true);
+                      const results: string[] = [];
+                      const errors: string[] = [];
+                      try {
+                        console.log('🔄 Starting counter initialization...');
+                        for (const k of orderedKeys) {
+                          try {
+                            console.log(`⏳ Processing ${k}...`);
+                            const stats = await rebuildEventStats(getYearKey(), k);
+                            const msg = `✅ ${k}: ${stats.participants} משתתפים, ${stats.totalEligibleAdults} זכאים, ${stats.totalConsumedAdults} נכנסו`;
+                            console.log(msg);
+                            results.push(msg);
+                          } catch (err) {
+                            const errMsg = `❌ ${k}: ${err instanceof Error ? err.message : String(err)}`;
+                            console.error(errMsg, err);
+                            errors.push(errMsg);
+                          }
+                        }
+                        
+                        const successCount = results.length;
+                        const failCount = errors.length;
+                        
+                        let message = `סיימתי!\n\n`;
+                        message += `✅ הצליחו: ${successCount} אירועים\n`;
+                        if (failCount > 0) {
+                          message += `❌ נכשלו: ${failCount} אירועים\n\n`;
+                          message += `שגיאות:\n${errors.join('\n')}\n\n`;
+                        }
+                        message += `\nתוצאות:\n${results.join('\n')}`;
+                        
+                        alert(message);
+                        console.log('🎉 Initialization complete!', { successCount, failCount, results, errors });
+                        
+                        // Refresh current event if selected
+                        if (selectedEvent) await loadEntries(selectedEvent);
+                      } catch (error) {
+                        const errMsg = '❌ שגיאה כללית באתחול: ' + (error instanceof Error ? error.message : String(error));
+                        console.error(errMsg, error);
+                        alert(errMsg);
+                      } finally {
+                        setStatsLoading(false);
+                      }
+                    }}
+                  >
+                    {statsLoading ? "מאתחל..." : "אתחל מונים כעת"}
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-8">
                 {selectedTotals ? (
                   <>
                     <div className="text-center">
-                      <div className="text-3xl font-extrabold leading-none">{selectedTotals.redeemedAdults}</div>
-                      <div className="text-xs text-muted-foreground mt-1">כמות כניסות</div>
+                      <div className="text-3xl font-extrabold leading-none">{selectedTotals.eligibleParticipants}</div>
+                      <div className="text-xs text-muted-foreground mt-1">מס' זכאים</div>
                     </div>
                     <div className="text-center">
                       <div className="text-3xl font-extrabold leading-none">{selectedTotals.eligibleAdults}</div>
-                      <div className="text-xs text-muted-foreground mt-1">סה"כ זכאות</div>
+                      <div className="text-xs text-muted-foreground mt-1">כמות זכאית</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-extrabold leading-none">{selectedTotals.redeemedAdults}</div>
+                      <div className="text-xs text-muted-foreground mt-1">כניסות שבוצעו</div>
                     </div>
                   </>
                 ) : (
                   <span className="text-sm text-muted-foreground">בחר אירוע להצגת סטטיסטיקה</span>
                 )}
               </div>
-              <Button
-                onClick={async () => {
-                  setRefreshKey((k) => k + 1);
-                  if (selectedEvent) await loadEntries(selectedEvent, { force: true });
-                }}
-                disabled={loading}
-              >
-                {loading ? "מרענן…" : "רענן נתונים"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={async () => {
+                    setRefreshKey((k) => k + 1);
+                    if (selectedEvent) await loadEntries(selectedEvent, { force: true });
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? "מרענן…" : "רענן נתונים"}
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -319,10 +395,10 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center justify-center gap-3 pt-3">
-                    <Switch
-                      checked={!!schedule?.requireVerification}
-                      onCheckedChange={(val) => setSchedule((s) => ({ ...(s ?? {}), requireVerification: !!val }))}
+                    <Checkbox
                       id="requireVerification"
+                      checked={!!schedule?.requireVerification}
+                      onCheckedChange={(val) => setSchedule((s) => ({ ...(s ?? {}), requireVerification: val === true }))}
                     />
                     <label htmlFor="requireVerification" className="text-sm select-none cursor-pointer">
                       ביצוע אימות מערכת בכניסה
@@ -330,27 +406,53 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex flex-col items-center gap-2 pt-2">
                     <div className="flex flex-wrap justify-center gap-2">
-                      <Button variant="secondary"
+                      <Button
+                        variant="secondary"
+                        disabled={clearingSchedule || testingSchedule}
                         onClick={async () => {
                           if (!selectedEvent) return;
                           const cleared: EventSchedule = { date: "", openTime: "", closeTime: "", requireVerification: schedule?.requireVerification };
-                          setSavingSchedule(true);
+                          setClearingSchedule(true);
                           try {
                             await setEventSchedule(getYearKey(), selectedEvent, cleared);
                             setSchedule(cleared);
-                          } finally { setSavingSchedule(false); }
+                          } finally {
+                            setClearingSchedule(false);
+                          }
                         }}
                       >
-                        הסר שעות מהאירוע (לא ייחשב "הסתיים")
+                        {clearingSchedule ? (
+                          <span className="inline-flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            מאתחל…
+                          </span>
+                        ) : (
+                          "איפוס תזמון אירוע"
+                        )}
                       </Button>
-                      <Button variant="secondary"
+                      <Button
+                        variant="secondary"
+                        disabled={testingSchedule || clearingSchedule}
                         onClick={async () => {
                           if (!selectedEvent) return;
                           const preset = { ...presetNowPlus2h(), requireVerification: schedule?.requireVerification } as EventSchedule;
-                          setSchedule(preset);
+                          setTestingSchedule(true);
+                          try {
+                            setSchedule(preset);
+                            await setEventSchedule(getYearKey(), selectedEvent, preset);
+                          } finally {
+                            setTestingSchedule(false);
+                          }
                         }}
                       >
-                        קבע לשעה זו ועד +שעתיים
+                        {testingSchedule ? (
+                          <span className="inline-flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            מגדיר…
+                          </span>
+                        ) : (
+                          "טסטינג"
+                        )}
                       </Button>
                     </div>
                     <div className="flex gap-2 justify-center">
@@ -440,12 +542,12 @@ export default function AdminDashboard() {
                             <td className="p-2 text-center truncate" title={e.participantName ?? ""}>{e.participantName ?? ""}</td>
                             <td className="p-2 text-center whitespace-nowrap">
                               <span className={`inline-flex h-6 min-w-10 items-center justify-center rounded px-2 text-xs ${e._redeemedFlag ? 'bg-green-100 text-green-800' : 'bg-muted text-muted-foreground'}`}>
-                                {e._redeemedFlag ? 'כן' : 'לא'}
+                                {e._redeemedFlag ? 'כן' : '—'}
                               </span>
                             </td>
                             <td className="p-2 text-center whitespace-nowrap">
-                              <span className={`inline-flex h-6 min-w-10 items-center justify-center rounded px-2 text-xs ${e._finalizedFlag ? 'bg-red-100 text-red-800' : 'bg-muted text-muted-foreground'}`}>
-                                {e._finalizedFlag ? 'כן' : 'לא'}
+                              <span className={`inline-flex h-6 min-w-10 items-center justify-center rounded px-2 text-xs bg-muted text-muted-foreground`}>
+                                —
                               </span>
                             </td>
                             <td className="p-2 text-center whitespace-nowrap">

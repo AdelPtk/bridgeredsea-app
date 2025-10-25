@@ -1,5 +1,6 @@
 import { initializeApp, getApps } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
@@ -12,6 +13,7 @@ const firebaseConfig = {
 
 let app: any = undefined;
 let db: any = null;
+let auth: ReturnType<typeof getAuth> | null = null;
 
 try {
   if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
@@ -25,10 +27,14 @@ try {
   } catch {
     db = getFirestore(app);
   }
+  try {
+    auth = getAuth(app);
+  } catch {}
 } catch {
   app = undefined;
   db = null;
+  auth = null;
 }
 
-export { db };
+export { db, auth };
 export default app;

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import SiteFooter from "@/components/SiteFooter";
 import { useState } from "react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import Papa from "papaparse";
 // קריאת DATA.csv מה-public
 import { toast } from "@/hooks/use-toast";
@@ -16,6 +16,26 @@ const Index = () => {
   const [participantId, setParticipantId] = useState("");
   const [csvParticipants, setCsvParticipants] = useState<any[]>([]);
   const [syncingAll, setSyncingAll] = useState(false);
+
+  // Allowed names to display on the home page
+  const allowedNamesRaw = useMemo(
+    () => [
+      "בירמן דורי",
+      "לוין אמיר",
+      "בירמן אלון",
+      "Petelko Lia",
+      "בירמן דניאלה",
+      "ברקת אילן",
+      "Msika Daniel",
+    ],
+    []
+  );
+  const normalizeName = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  const allowedSet = useMemo(() => new Set(allowedNamesRaw.map(normalizeName)), [allowedNamesRaw]);
+  const displayParticipants = useMemo(
+    () => csvParticipants.filter((p) => allowedSet.has(normalizeName(String(p.NAME || "")))),
+    [csvParticipants, allowedSet]
+  );
 
   // קריאה ופרסינג של DATA.csv מה-public
   useEffect(() => {
@@ -187,10 +207,10 @@ const Index = () => {
                 צפייה בנתוני משתתפים מהקובץ:
               </p>
               <div className="space-y-2">
-                {csvParticipants.length === 0 ? (
+                {displayParticipants.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center">לא נטען קובץ משתתפים.</p>
                 ) : (
-          csvParticipants.map((p, idx) => (
+                  displayParticipants.map((p, idx) => (
                     <Button
                       key={idx}
                       variant="outline"
