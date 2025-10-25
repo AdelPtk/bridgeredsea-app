@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, updateDoc, increment, collectionGroup, getDocs, query, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, increment, collectionGroup, getDocs, query, where, collection } from "firebase/firestore";
 
 export type EventStats = {
   totalEligibleAdults: number;
@@ -57,23 +57,34 @@ export async function incrementEventStats(year: string, eventKey: string, deltas
   } as any);
 }
 
-// One-shot rebuild using collectionGroup; use sparingly (button in Admin only)
+// Rebuild event stats without requiring a collectionGroup index
+// Works by iterating all participants and checking each one's events
 export async function rebuildEventStats(year: string, eventKey: string): Promise<EventStats> {
   if (!db) return { totalEligibleAdults: 0, totalConsumedAdults: 0, participants: 0, updatedAt: new Date().toISOString() };
-  const cg = collectionGroup(db, "events");
-  const q1 = query(cg, where("year", "==", year), where("eventKey", "==", eventKey));
-  const snap = await getDocs(q1);
+  
+  // Get all participants for the year
+  const participantsCol = collection(db, "years", year, "participants");
+  const participantsSnap = await getDocs(participantsCol);
+  
   let totalEligible = 0;
   let totalConsumed = 0;
   let participants = 0;
-  snap.forEach((docSnap) => {
-    const d = docSnap.data() as any;
-    const qty = Number.isFinite(d.quantity) ? Number(d.quantity) : 1;
-    const consumed = Number.isFinite(d.consumed) ? Number(d.consumed) : (d.redeemed ? qty : 0);
-    totalEligible += qty;
-    totalConsumed += consumed;
-    participants += 1;
-  });
+  
+  // Check each participant's events subcollection
+  for (const participantDoc of participantsSnap.docs) {
+    const eventRef = doc(db, "years", year, "participants", participantDoc.id, "events", eventKey);
+    const eventSnap = await getDoc(eventRef);
+    
+    if (eventSnap.exists()) {
+      const d = eventSnap.data() as any;
+      const qty = Number.isFinite(d.quantity) ? Number(d.quantity) : 1;
+      const consumed = Number.isFinite(d.consumed) ? Number(d.consumed) : (d.redeemed ? qty : 0);
+      totalEligible += qty;
+      totalConsumed += consumed;
+      participants += 1;
+    }
+  }
+  
   const ref = eventStatsRef(year, eventKey);
   const payload: EventStats = {
     totalEligibleAdults: totalEligible,
