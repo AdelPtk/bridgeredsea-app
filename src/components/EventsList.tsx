@@ -446,10 +446,10 @@ const EventsList = ({ participant }: EventsListProps) => {
                   </div>
                   {/* Voucher appears as soon as there's any redemption; stays green until finalized */}
                   {hasAnyConsumed ? (
-        <div className={`relative mt-1 mx-auto w-full max-w-sm rounded-xl border-2 border-dashed ${finalizedMap[key] ? 'border-red-600 bg-red-100' : 'border-green-600 bg-green-100'} text-black p-4 text-center shadow-sm overflow-visible`}>
-                      {/* Ticket notches with border */}
-                      <div className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-dashed ${finalizedMap[key] ? 'border-red-600' : 'border-green-600'}`} style={{ backgroundColor: bg }} />
-                      <div className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-dashed ${finalizedMap[key] ? 'border-red-600' : 'border-green-600'}`} style={{ backgroundColor: bg }} />
+        <div className={`relative mt-1 mx-auto w-full max-w-sm rounded-xl border-2 border-dashed ${finalizedMap[key] ? 'border-red-600 bg-red-100 ticket-notch-left ticket-notch-right ticket-notch-red' : 'border-green-600 bg-green-100 ticket-notch-left ticket-notch-right ticket-notch-green'} text-black p-4 text-center shadow-sm`}>
+                      {/* Ticket notches - semicircles */}
+                      <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full" style={{ backgroundColor: bg }} />
+                      <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full" style={{ backgroundColor: bg }} />
                       {/* Voucher header */}
                       <div className={`flex items-center justify-center gap-2 mb-1 ${finalizedMap[key] ? 'text-red-800' : 'text-green-800'}`}>
                         <Ticket className="w-4 h-4" />
@@ -494,10 +494,10 @@ const EventsList = ({ participant }: EventsListProps) => {
                     </div>
                   ) : (
                   <div className="pt-1 flex justify-center">
-                    <div className="relative w-full max-w-sm rounded-xl border-2 border-dashed border-bridge-blue bg-white/80 text-black p-4 text-center shadow-sm overflow-visible">
-                      {/* Ticket notches with border */}
-                      <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-dashed border-bridge-blue" style={{ backgroundColor: bg }} />
-                      <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-dashed border-bridge-blue" style={{ backgroundColor: bg }} />
+                    <div className="relative w-full max-w-sm rounded-xl border-2 border-dashed border-bridge-blue bg-white/80 text-black p-4 text-center shadow-sm ticket-notch-left ticket-notch-right ticket-notch-blue">
+                      {/* Ticket notches - semicircles */}
+                      <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full" style={{ backgroundColor: bg }} />
+                      <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full" style={{ backgroundColor: bg }} />
                       {/* Voucher header */}
                       <div className="flex items-center justify-center gap-2 mb-2 text-bridge-blue">
                         <Ticket className="w-4 h-4" />
@@ -588,6 +588,37 @@ const EventsList = ({ participant }: EventsListProps) => {
         }
         .animated-list-scrollbar {
           overflow: -moz-scrollbars-none;
+        }
+        /* Ticket notch styling - semicircle cutout effect */
+        .ticket-notch-left::before,
+        .ticket-notch-right::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          border: 2px dashed;
+        }
+        .ticket-notch-left::before {
+          left: -3px;
+          border-right: none;
+          clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
+        }
+        .ticket-notch-right::before {
+          right: -3px;
+          border-left: none;
+          clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+        }
+        .ticket-notch-green::before {
+          border-color: #16a34a;
+        }
+        .ticket-notch-red::before {
+          border-color: #dc2626;
+        }
+        .ticket-notch-blue::before {
+          border-color: #1e40af;
         }
       `}</style>
       <Card className="rounded-lg overflow-hidden">
