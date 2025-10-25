@@ -287,17 +287,13 @@ export default function AdminDashboard() {
               </div>
 
               <TabsContent value="events" className="space-y-6">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-8">
+              <div className="flex items-center justify-center flex-wrap gap-4">
+              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
                 {selectedTotals ? (
                   <>
                     <div className="text-center">
-                      <div className="text-3xl font-extrabold leading-none">{selectedTotals.eligibleParticipants}</div>
-                      <div className="text-xs text-muted-foreground mt-1">מס' זכאים</div>
-                    </div>
-                    <div className="text-center">
                       <div className="text-3xl font-extrabold leading-none">{selectedTotals.eligibleAdults}</div>
-                      <div className="text-xs text-muted-foreground mt-1">כמות זכאית</div>
+                      <div className="text-xs text-muted-foreground mt-1">כמות זכאות</div>
                     </div>
                     <div className="text-center">
                       <div className="text-3xl font-extrabold leading-none">{selectedTotals.redeemedAdults}</div>
@@ -346,34 +342,36 @@ export default function AdminDashboard() {
                 </div>
                 {/* Schedule editor */}
                 <div className="rounded-md border p-3 space-y-3">
-                  <div className="font-medium">הגדרת שעות לאירוע</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="font-medium text-center sm:text-right">הגדרת שעות לאירוע</div>
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <label className="block text-sm mb-1">תאריך</label>
+                      <label className="block text-sm mb-1 text-center sm:text-right">תאריך</label>
                       <input
                         type="date"
-                        className="w-full border rounded px-2 py-1"
+                        className="w-full border rounded px-2 py-1.5 text-center sm:text-right"
                         value={schedule?.date ?? ""}
                         onChange={(e) => setSchedule((s) => ({ ...(s ?? {}), date: e.target.value }))}
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm mb-1">שעת פתיחה</label>
-                      <input
-                        type="time"
-                        className="w-full border rounded px-2 py-1"
-                        value={schedule?.openTime ?? ""}
-                        onChange={(e) => setSchedule((s) => ({ ...(s ?? {}), openTime: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm mb-1">שעת סגירה</label>
-                      <input
-                        type="time"
-                        className="w-full border rounded px-2 py-1"
-                        value={schedule?.closeTime ?? ""}
-                        onChange={(e) => setSchedule((s) => ({ ...(s ?? {}), closeTime: e.target.value }))}
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm mb-1 text-center sm:text-right">שעת פתיחה</label>
+                        <input
+                          type="time"
+                          className="w-full border rounded px-2 py-1.5 text-center"
+                          value={schedule?.openTime ?? ""}
+                          onChange={(e) => setSchedule((s) => ({ ...(s ?? {}), openTime: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm mb-1 text-center sm:text-right">שעת סגירה</label>
+                        <input
+                          type="time"
+                          className="w-full border rounded px-2 py-1.5 text-center"
+                          value={schedule?.closeTime ?? ""}
+                          onChange={(e) => setSchedule((s) => ({ ...(s ?? {}), closeTime: e.target.value }))}
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-center gap-3 pt-3">
@@ -456,8 +454,8 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 
-                {/* Participant entries list - only show if loaded */}
-                {entries.length > 0 && (
+                {/* Participant entries list */}
+                {entries.length > 0 ? (
                   <div className="space-y-3">
                     {/* Mobile list (stacked cards) */}
                     <div className="sm:hidden rounded-md border divide-y">
@@ -540,6 +538,10 @@ export default function AdminDashboard() {
                       </tbody>
                     </table>
                     </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>לחץ על "טען רשימת משתתפים" כדי לראות את המשתתפים שנכנסו לאירוע</p>
                   </div>
                 )}
               </div>
