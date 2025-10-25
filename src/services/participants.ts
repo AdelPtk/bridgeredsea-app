@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase";
-import { collection, collectionGroup, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, runTransaction, addDoc, serverTimestamp, orderBy, limit } from "firebase/firestore";
+import { collection, collectionGroup, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, runTransaction, addDoc, serverTimestamp, orderBy, limit, writeBatch } from "firebase/firestore";
 import { incrementEventStats } from "@/services/eventStats";
 import type { Participant } from "@/types/participant";
 
@@ -250,6 +250,28 @@ export async function setEventFinalized(
     },
     { merge: true }
   );
+  
+  // Update all redemptionLogs for this participant+event to reflect finalized status
+  try {
+    const logsCol = collection(db, "redemptionLogs");
+    const logsQ = query(
+      logsCol,
+      where("year", "==", year),
+      where("participantId", "==", pid),
+      where("eventKey", "==", eventKey)
+    );
+    const logsSnap = await getDocs(logsQ);
+    const batch = writeBatch(db);
+    logsSnap.forEach((doc) => {
+      batch.update(doc.ref, { finalized });
+    });
+    if (!logsSnap.empty) {
+      await batch.commit();
+    }
+  } catch (error) {
+    console.error('Error updating redemption logs finalized status:', error);
+  }
+  
   invalidateCachesForEvent(year, eventKey);
 }
 
@@ -458,6 +480,7 @@ export type RedeemedEntry = {
   entryCount?: number; // count for this specific log entry (for partial redemptions)
   // Snapshot flags to avoid N lookups when listing; may be undefined for older logs
   _redeemedFlag?: boolean;
+  _finalizedFlag?: boolean;
 };
 
 // Simple in-memory caches for the session
@@ -507,6 +530,7 @@ export async function listRedeemedForEvent(year: string, eventKey: string, opts?
         eventName: d.eventName ?? undefined,
         quantity: typeof d.quantity === "number" ? d.quantity : undefined,
         _redeemedFlag: typeof d.redeemedAfter === "boolean" ? d.redeemedAfter : undefined as any,
+        _finalizedFlag: typeof d.finalized === "boolean" ? d.finalized : false,
       });
     });
     

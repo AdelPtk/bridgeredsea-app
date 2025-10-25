@@ -524,8 +524,8 @@ export default function AdminDashboard() {
                               </span>
                             </td>
                             <td className="p-2 text-center whitespace-nowrap">
-                              <span className={`inline-flex h-6 min-w-10 items-center justify-center rounded px-2 text-xs bg-muted text-muted-foreground`}>
-                                —
+                              <span className={`inline-flex h-6 min-w-10 items-center justify-center rounded px-2 text-xs ${e._finalizedFlag ? 'bg-red-100 text-red-800' : 'bg-muted text-muted-foreground'}`}>
+                                {e._finalizedFlag ? 'כן' : '—'}
                               </span>
                             </td>
                             <td className="p-2 text-center whitespace-nowrap">
