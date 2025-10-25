@@ -481,18 +481,24 @@ export async function listRedeemedForEvent(year: string, eventKey: string, opts?
     const hit = _redeemedCache.get(cacheKey);
     if (hit && now - hit.when < _CACHE_TTL_MS) return hit.data;
   }
-  const out: RedeemedEntry[] = [];
+  
   try {
-    // Prefer logs: one row per redemption increment
+    // Use redemptionLogs: one row per redemption increment
+    // This is MUCH faster because it only contains redeemed entries
     const logsCol = collection(db, "redemptionLogs");
-    const logsQ = query(logsCol, where("year", "==", year), where("eventKey", "==", eventKey));
+    const logsQ = query(
+      logsCol, 
+      where("year", "==", year), 
+      where("eventKey", "==", eventKey)
+    );
     const logsSnap = await getDocs(logsQ);
-    const tmp: RedeemedEntry[] = [];
+    
+    const entries: RedeemedEntry[] = [];
     logsSnap.forEach((docSnap) => {
       const d = docSnap.data() as any;
       const pid = String(d.participantId || "");
       const at = d.at && typeof d.at.toDate === "function" ? d.at.toDate().toISOString() : undefined;
-      tmp.push({
+      entries.push({
         eventKey,
         participantId: pid,
         redeemedAt: at,
@@ -500,88 +506,20 @@ export async function listRedeemedForEvent(year: string, eventKey: string, opts?
         participantName: d.participantName ?? undefined,
         eventName: d.eventName ?? undefined,
         quantity: typeof d.quantity === "number" ? d.quantity : undefined,
-        // Best-effort flags snapshot
         _redeemedFlag: typeof d.redeemedAfter === "boolean" ? d.redeemedAfter : undefined as any,
       });
     });
-    if (tmp.length > 0) {
-      // Avoid N lookups by using denormalized participantName when available.
-      const sorted = tmp.sort((a, b) => (a.redeemedAt || "").localeCompare(b.redeemedAt || ""));
-      _redeemedCache.set(cacheKey, { when: now, data: sorted });
-      return sorted;
-    }
-
-    // Fallback: derive single row from events document consumed>0
-    const cg = collectionGroup(db, "events");
-    const q1 = query(cg, where("year", "==", year), where("eventKey", "==", eventKey));
-    const snap = await getDocs(q1);
-    const tmp2: RedeemedEntry[] = [];
-    snap.forEach((docSnap) => {
-      const d = docSnap.data() as any;
-      const pid = d.participantId || (docSnap.ref.parent?.parent as any)?.id || "";
-      const qty = typeof d.quantity === "number" ? d.quantity : 1;
-      const consumed = typeof d.consumed === "number" ? d.consumed : (d.redeemed ? qty : 0);
-      if (consumed > 0) {
-        tmp2.push({
-          eventKey,
-          eventName: d.name,
-          participantId: pid,
-          participantName: d.participantName,
-          redeemedAt: d.redeemedAt ?? undefined,
-          quantity: qty,
-          consumed,
-          entryCount: consumed,
-        });
-      }
-    });
-    // For fallback path, enrich missing names minimally
-    const cache = new Map<string, any>();
-    for (const e of tmp2) {
-      if (!e.participantName && e.participantId) {
-        let p = cache.get(e.participantId);
-        if (!p) {
-          const pSnap = await getDoc(participantDocRef(year, e.participantId));
-          p = pSnap.exists() ? pSnap.data() : null;
-          cache.set(e.participantId, p);
-        }
-        if (p) {
-          e.participantName = (p as any).NAME ?? (p as any).name ?? e.participantName;
-        }
-      }
-    }
-    const sorted = tmp2.sort((a, b) => (a.redeemedAt || "").localeCompare(b.redeemedAt || ""));
+    
+    // Sort by timestamp (newest first)
+    const sorted = entries.sort((a, b) => (b.redeemedAt || "").localeCompare(a.redeemedAt || ""));
+    
     _redeemedCache.set(cacheKey, { when: now, data: sorted });
     return sorted;
-  } catch (e) {
-    // fallback: scan per participant
+  } catch (error) {
+    console.error('Error loading redemption logs:', error);
+    // Return empty array instead of falling back to expensive scan
+    return [];
   }
-  const participantsCol = collection(db, "years", year, "participants");
-  const pSnap = await getDocs(participantsCol);
-  for (const p of pSnap.docs) {
-    const pid = p.id;
-    const evRef = eventDocRef(year, pid, eventKey);
-    const evSnap = await getDoc(evRef);
-    if (evSnap.exists()) {
-      const d = evSnap.data() as any;
-    const qty = typeof d.quantity === "number" ? d.quantity : 1;
-    const consumed = typeof d.consumed === "number" ? d.consumed : (d.redeemed ? qty : 0);
-    if (consumed > 0) {
-        const pdata = p.data() as any;
-        out.push({
-          eventKey,
-          eventName: d.name,
-          participantId: pid,
-          participantName: pdata?.NAME ?? pdata?.name,
-          redeemedAt: d.redeemedAt ?? undefined,
-      quantity: qty,
-      consumed,
-        });
-      }
-    }
-  }
-  const sorted = out.sort((a, b) => (a.redeemedAt || "").localeCompare(b.redeemedAt || ""));
-  _redeemedCache.set(cacheKey, { when: now, data: sorted });
-  return sorted;
 }
 
 export type EventTotals = {
