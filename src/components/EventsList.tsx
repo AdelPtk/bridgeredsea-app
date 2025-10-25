@@ -446,10 +446,10 @@ const EventsList = ({ participant }: EventsListProps) => {
                   </div>
                   {/* Voucher appears as soon as there's any redemption; stays green until finalized */}
                   {hasAnyConsumed ? (
-        <div className={`relative mt-1 mx-auto w-full max-w-sm rounded-xl border-2 border-dashed ${finalizedMap[key] ? 'border-red-600 bg-red-100' : 'border-green-600 bg-green-100'} text-black p-4 text-center shadow-sm`}>
-                      {/* Ticket notches */}
-                      <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full" style={{ backgroundColor: bg }} />
-                      <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full" style={{ backgroundColor: bg }} />
+        <div className={`relative mt-1 mx-auto w-full max-w-sm rounded-xl border-2 border-dashed ${finalizedMap[key] ? 'border-red-600 bg-red-100' : 'border-green-600 bg-green-100'} text-black p-4 text-center shadow-sm overflow-visible`}>
+                      {/* Ticket notches with border */}
+                      <div className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-dashed ${finalizedMap[key] ? 'border-red-600' : 'border-green-600'}`} style={{ backgroundColor: bg }} />
+                      <div className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-dashed ${finalizedMap[key] ? 'border-red-600' : 'border-green-600'}`} style={{ backgroundColor: bg }} />
                       {/* Voucher header */}
                       <div className={`flex items-center justify-center gap-2 mb-1 ${finalizedMap[key] ? 'text-red-800' : 'text-green-800'}`}>
                         <Ticket className="w-4 h-4" />
@@ -494,10 +494,10 @@ const EventsList = ({ participant }: EventsListProps) => {
                     </div>
                   ) : (
                   <div className="pt-1 flex justify-center">
-                    <div className="relative w-full max-w-sm rounded-xl border-2 border-dashed border-bridge-blue bg-white/80 text-black p-4 text-center shadow-sm">
-                      {/* Ticket notches */}
-                      <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full" style={{ backgroundColor: bg }} />
-                      <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full" style={{ backgroundColor: bg }} />
+                    <div className="relative w-full max-w-sm rounded-xl border-2 border-dashed border-bridge-blue bg-white/80 text-black p-4 text-center shadow-sm overflow-visible">
+                      {/* Ticket notches with border */}
+                      <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-dashed border-bridge-blue" style={{ backgroundColor: bg }} />
+                      <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-dashed border-bridge-blue" style={{ backgroundColor: bg }} />
                       {/* Voucher header */}
                       <div className="flex items-center justify-center gap-2 mb-2 text-bridge-blue">
                         <Ticket className="w-4 h-4" />
