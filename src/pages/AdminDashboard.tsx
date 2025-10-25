@@ -70,29 +70,33 @@ export default function AdminDashboard() {
     })();
   }, [refreshKey]);
 
-  const loadEntries = async (eventKey: string, opts?: { force?: boolean }) => {
+  // Load event stats quickly (just the counters)
+  const loadEventStats = async (eventKey: string) => {
     setSelectedEvent(eventKey);
+    setStatsLoading(true);
+    try {
+      const es = await getEventStats(getYearKey(), eventKey);
+      setSelectedTotals({
+        eligibleParticipants: es.participants,
+        eligibleAdults: es.totalEligibleAdults,
+        redeemedParticipants: 0,
+        redeemedAdults: es.totalConsumedAdults,
+      });
+      // Load schedule too (fast)
+      const sch = await getEventSchedule(getYearKey(), eventKey);
+      setSchedule(sch ?? { date: "", openTime: "", closeTime: "" });
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  // Load participant entries (slower, only when needed)
+  const loadEntries = async (opts?: { force?: boolean }) => {
+    if (!selectedEvent) return;
     setLoadingEntries(true);
     try {
-      // Fast path: list logs directly without per-row lookups
-      const list = await listRedeemedForEvent(getYearKey(), eventKey, { force: opts?.force });
+      const list = await listRedeemedForEvent(getYearKey(), selectedEvent, { force: opts?.force });
       setEntries(list);
-      // Fast counters: use precomputed eventStats
-      setStatsLoading(true);
-      try {
-        const es = await getEventStats(getYearKey(), eventKey);
-        setSelectedTotals({
-          eligibleParticipants: es.participants,
-          eligibleAdults: es.totalEligibleAdults,
-          redeemedParticipants: 0,
-          redeemedAdults: es.totalConsumedAdults,
-        });
-      } finally {
-        setStatsLoading(false);
-      }
-  // Load schedule
-  const sch = await getEventSchedule(getYearKey(), eventKey);
-  setSchedule(sch ?? { date: "", openTime: "", closeTime: "" });
     } finally {
       setLoadingEntries(false);
     }
@@ -104,7 +108,7 @@ export default function AdminDashboard() {
     await setEventRedeemed(getYearKey(), participantId, selectedEvent, false);
   await clearRedemptionLogsForParticipant(getYearKey(), participantId, selectedEvent);
     // local refresh
-    await loadEntries(selectedEvent);
+    await loadEntries();
     setRefreshKey((k) => k + 1);
   };
 
@@ -294,8 +298,8 @@ export default function AdminDashboard() {
                         alert(message);
                         console.log('🎉 Initialization complete!', { successCount, failCount, results, errors });
                         
-                        // Refresh current event if selected
-                        if (selectedEvent) await loadEntries(selectedEvent);
+                        // Refresh current event stats if selected
+                        if (selectedEvent) await loadEventStats(selectedEvent);
                       } catch (error) {
                         const errMsg = '❌ שגיאה כללית באתחול: ' + (error instanceof Error ? error.message : String(error));
                         console.error(errMsg, error);
@@ -335,7 +339,10 @@ export default function AdminDashboard() {
                 <Button
                   onClick={async () => {
                     setRefreshKey((k) => k + 1);
-                    if (selectedEvent) await loadEntries(selectedEvent, { force: true });
+                    if (selectedEvent) {
+                      await loadEventStats(selectedEvent);
+                      await loadEntries({ force: true });
+                    }
                   }}
                   disabled={loading}
                 >
@@ -348,7 +355,7 @@ export default function AdminDashboard() {
               {orderedKeys.map((k) => (
                 <button
                   key={k}
-                  onClick={() => loadEntries(k)}
+                  onClick={() => loadEventStats(k)}
                   className="w-full rounded-md p-3 text-right border shadow-sm hover:opacity-90 transition"
                   style={{ backgroundColor: eventColorMap[k] || "#F5F5F5" }}
                 >
@@ -358,10 +365,26 @@ export default function AdminDashboard() {
               ))}
             </div>
 
-            {/* Table-like list */}
+            {/* Event details section */}
             {selectedEvent && (
               <div className="space-y-3">
-                <h3 className="font-bold text-lg">{eventNameMap[selectedEvent] ?? selectedEvent}</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-lg">{eventNameMap[selectedEvent] ?? selectedEvent}</h3>
+                  <Button
+                    variant="outline"
+                    onClick={() => loadEntries()}
+                    disabled={loadingEntries}
+                  >
+                    {loadingEntries ? (
+                      <>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        טוען רשימת משתתפים...
+                      </>
+                    ) : (
+                      entries.length > 0 ? "רענן רשימה" : "טען רשימת משתתפים"
+                    )}
+                  </Button>
+                </div>
                 {/* Schedule editor */}
                 <div className="rounded-md border p-3 space-y-3">
                   <div className="font-medium">הגדרת שעות לאירוע</div>
@@ -473,11 +496,9 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
-                {loadingEntries ? (
-                  <p className="text-muted-foreground">טוען רשימת כניסות…</p>
-                ) : entries.length === 0 ? (
-                  <p className="text-muted-foreground">אין כניסות עדיין.</p>
-                ) : (
+                
+                {/* Participant entries list - only show if loaded */}
+                {entries.length > 0 && (
                   <div className="space-y-3">
                     {/* Mobile list (stacked cards) */}
                     <div className="sm:hidden rounded-md border divide-y">
