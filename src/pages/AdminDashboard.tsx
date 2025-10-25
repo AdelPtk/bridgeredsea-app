@@ -291,20 +291,87 @@ export default function AdminDashboard() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-lg">{eventNameMap[selectedEvent] ?? selectedEvent}</h3>
-                  <Button
-                    variant="outline"
-                    onClick={() => loadEntries()}
-                    disabled={loadingEntries}
-                  >
-                    {loadingEntries ? (
-                      <>
-                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                        טוען רשימת משתתפים...
-                      </>
-                    ) : (
-                      entries.length > 0 ? "רענן רשימה" : "טען רשימת משתתפים"
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => loadEntries()}
+                      disabled={loadingEntries}
+                    >
+                      {loadingEntries ? (
+                        <>
+                          <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                          טוען רשימת משתתפים...
+                        </>
+                      ) : (
+                        entries.length > 0 ? "רענן רשימה" : "טען רשימת משתתפים"
+                      )}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={async () => {
+                        if (!selectedEvent) return;
+                        if (!confirm(`⚠️ האם לנקות את כל הכניסות לאירוע "${eventNameMap[selectedEvent]}"?\n\nזה ימחק:\n- את כל רשומות הכניסות (logs)\n- את כל הכמויות שנצרכו (consumed)\n\nהפעולה בלתי הפיכה!`)) return;
+                        
+                        setStatsLoading(true);
+                        try {
+                          const year = getYearKey();
+                          // Clear all redemption logs for this event
+                          const { collection, query, where, getDocs, deleteDoc } = await import('firebase/firestore');
+                          const { db } = await import('@/lib/firebase');
+                          
+                          // Delete all logs
+                          const logsCol = collection(db, "redemptionLogs");
+                          const logsQ = query(logsCol, where("year", "==", year), where("eventKey", "==", selectedEvent));
+                          const logsSnap = await getDocs(logsQ);
+                          let deletedLogs = 0;
+                          for (const doc of logsSnap.docs) {
+                            await deleteDoc(doc.ref);
+                            deletedLogs++;
+                          }
+                          
+                          // Reset consumed for all participants
+                          const { doc: docRef, getDoc, setDoc } = await import('firebase/firestore');
+                          const participantsCol = collection(db, "years", year, "participants");
+                          const participantsSnap = await getDocs(participantsCol);
+                          let resetCount = 0;
+                          
+                          for (const participantDoc of participantsSnap.docs) {
+                            const eventRef = docRef(db, "years", year, "participants", participantDoc.id, "events", selectedEvent);
+                            const eventSnap = await getDoc(eventRef);
+                            
+                            if (eventSnap.exists()) {
+                              const data = eventSnap.data();
+                              if (data.consumed && data.consumed > 0) {
+                                await setDoc(eventRef, {
+                                  consumed: 0,
+                                  redeemed: false,
+                                  redeemedAt: null,
+                                  finalized: false,
+                                }, { merge: true });
+                                resetCount++;
+                              }
+                            }
+                          }
+                          
+                          // Rebuild counters
+                          await rebuildEventStats(year, selectedEvent);
+                          
+                          alert(`✅ ניקוי הושלם!\n\n📋 נמחקו ${deletedLogs} רשומות כניסה\n🔄 אופסו ${resetCount} משתתפים\n\nהמונים עודכנו.`);
+                          
+                          // Refresh display
+                          setEntries([]);
+                          await loadEventStats(selectedEvent);
+                        } catch (error) {
+                          alert(`❌ שגיאה בניקוי: ${error instanceof Error ? error.message : String(error)}`);
+                        } finally {
+                          setStatsLoading(false);
+                        }
+                      }}
+                      disabled={statsLoading}
+                    >
+                      {statsLoading ? "מנקה..." : "🗑️ נקה כל הכניסות"}
+                    </Button>
+                  </div>
                 </div>
                 {/* Schedule editor */}
                 <div className="rounded-md border p-3 space-y-3">
