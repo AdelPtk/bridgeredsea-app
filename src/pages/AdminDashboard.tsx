@@ -270,20 +270,6 @@ export default function AdminDashboard() {
                   <span className="text-sm text-muted-foreground">בחר אירוע להצגת סטטיסטיקה</span>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={async () => {
-                    setRefreshKey((k) => k + 1);
-                    if (selectedEvent) {
-                      await loadEventStats(selectedEvent);
-                      await loadEntries({ force: true });
-                    }
-                  }}
-                  disabled={loading}
-                >
-                  {loading ? "מרענן…" : "רענן נתונים"}
-                </Button>
-              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
