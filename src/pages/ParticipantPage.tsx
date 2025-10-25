@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import Papa from "papaparse";
 import ParticipantCard from "@/components/ParticipantCard";
 import EventsList from "@/components/EventsList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +9,9 @@ import { Label } from "@/components/ui/label";
 import { useLang } from "@/hooks/use-lang";
 import SiteFooter from "@/components/SiteFooter";
 import logoWA from "../../LOGO_WA.png";
+import { getYearKey } from "@/services/participants";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 const ParticipantPage = () => {
   const [searchParams] = useSearchParams();
@@ -41,26 +43,53 @@ const ParticipantPage = () => {
       setLoading(false);
       return;
     }
-    fetch("/DATA.csv")
-      .then((res) => res.text())
-      .then((csvText) => {
-        Papa.parse(csvText, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            const normalize = (v: any) => String(v ?? "").trim();
-            const target = normalize(id);
-            const found = results.data.find((row: any) => {
-              const candidates = [row.ID, row.id, row["מזהה"], row.RESERVATION_NUM];
-              return candidates.some((v) => normalize(v) === target);
-            });
-            setParticipant(found || null);
-            setLoading(false);
-          },
-        });
-      })
-      .catch(() => setLoading(false));
-  }, [id, isEnterMode]);
+    
+    // Search for participant in Firestore
+    const searchFirestore = async () => {
+      if (!db) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        const year = getYearKey();
+        const normalize = (v: any) => String(v ?? "").trim();
+        const target = normalize(id);
+        
+        // First try: direct lookup by ID
+        const participantRef = doc(db, "years", year, "participants", target);
+        const participantSnap = await getDoc(participantRef);
+        
+        if (participantSnap.exists()) {
+          setParticipant({ ...participantSnap.data(), ID: participantSnap.id });
+          setLoading(false);
+          return;
+        }
+        
+        // Second try: search by RESERVATION_NUM
+        const participantsCol = collection(db, "years", year, "participants");
+        const q = query(participantsCol, where("RESERVATION_NUM", "==", target));
+        const querySnap = await getDocs(q);
+        
+        if (!querySnap.empty) {
+          const found = querySnap.docs[0];
+          setParticipant({ ...found.data(), ID: found.id });
+          setLoading(false);
+          return;
+        }
+        
+        // Not found
+        setParticipant(null);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error searching participant:', error);
+        setParticipant(null);
+        setLoading(false);
+      }
+    };
+    
+    searchFirestore();
+  }, [id, isEnterMode, setLang]);
 
   // Set language based on participant.HUL: YES -> English, otherwise Hebrew
   useEffect(() => {
