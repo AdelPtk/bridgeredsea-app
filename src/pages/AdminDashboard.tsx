@@ -22,6 +22,19 @@ const eventNameMap: Record<string, string> = {
   PRIZES: "טקס פרסים",
 };
 
+// Default schedules from the original event definitions
+const defaultSchedules: Record<string, { date: string; openTime: string; closeTime: string }> = {
+  OPENING: { date: "2025-11-13", openTime: "19:00", closeTime: "22:00" },
+  RB1: { date: "2025-11-15", openTime: "19:00", closeTime: "22:00" },
+  TERRACE1: { date: "2025-11-16", openTime: "19:00", closeTime: "22:00" },
+  SOUPS: { date: "2025-11-17", openTime: "23:30", closeTime: "02:00" },
+  COCKTAIL: { date: "2025-11-19", openTime: "19:00", closeTime: "22:00" },
+  TERRACE2: { date: "2025-11-20", openTime: "15:00", closeTime: "18:00" },
+  RB2: { date: "2025-11-20", openTime: "19:00", closeTime: "21:00" },
+  TERRACE3: { date: "2025-11-21", openTime: "15:00", closeTime: "18:00" },
+  PRIZES: { date: "2025-11-21", openTime: "21:00", closeTime: "02:00" },
+};
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Record<string, { redeemedParticipants: number; redeemedAdults: number }>>({});
   const [loading, setLoading] = useState(false);
@@ -40,6 +53,7 @@ export default function AdminDashboard() {
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [clearingSchedule, setClearingSchedule] = useState(false);
   const [testingSchedule, setTestingSchedule] = useState(false);
+  const [settingAllSchedules, setSettingAllSchedules] = useState(false);
 
   // Top tab: events vs participants
   const [activeTab, setActiveTab] = useState<"events" | "participants">("events");
@@ -232,6 +246,30 @@ export default function AdminDashboard() {
     } as EventSchedule;
   };
 
+  const setAllEventSchedules = async () => {
+    setSettingAllSchedules(true);
+    try {
+      const year = getYearKey();
+      for (const [eventKey, sched] of Object.entries(defaultSchedules)) {
+        await setEventSchedule(year, eventKey, { 
+          ...sched, 
+          requireVerification: false 
+        });
+      }
+      alert("✅ כל התזמונים הוגדרו בהצלחה!");
+      // If an event is selected, refresh its schedule
+      if (selectedEvent) {
+        const sch = await getEventSchedule(year, selectedEvent);
+        setSchedule(sch ?? { date: "", openTime: "", closeTime: "" });
+      }
+    } catch (err) {
+      console.error(err);
+      alert("❌ שגיאה בהגדרת התזמונים");
+    } finally {
+      setSettingAllSchedules(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white" dir="rtl">
       <div className="container mx-auto px-4 py-8 space-y-6 max-w-6xl">
@@ -291,87 +329,20 @@ export default function AdminDashboard() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-lg">{eventNameMap[selectedEvent] ?? selectedEvent}</h3>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => loadEntries()}
-                      disabled={loadingEntries}
-                    >
-                      {loadingEntries ? (
-                        <>
-                          <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                          טוען רשימת משתתפים...
-                        </>
-                      ) : (
-                        entries.length > 0 ? "רענן רשימה" : "טען רשימת משתתפים"
-                      )}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={async () => {
-                        if (!selectedEvent) return;
-                        if (!confirm(`⚠️ האם לנקות את כל הכניסות לאירוע "${eventNameMap[selectedEvent]}"?\n\nזה ימחק:\n- את כל רשומות הכניסות (logs)\n- את כל הכמויות שנצרכו (consumed)\n\nהפעולה בלתי הפיכה!`)) return;
-                        
-                        setStatsLoading(true);
-                        try {
-                          const year = getYearKey();
-                          // Clear all redemption logs for this event
-                          const { collection, query, where, getDocs, deleteDoc } = await import('firebase/firestore');
-                          const { db } = await import('@/lib/firebase');
-                          
-                          // Delete all logs
-                          const logsCol = collection(db, "redemptionLogs");
-                          const logsQ = query(logsCol, where("year", "==", year), where("eventKey", "==", selectedEvent));
-                          const logsSnap = await getDocs(logsQ);
-                          let deletedLogs = 0;
-                          for (const doc of logsSnap.docs) {
-                            await deleteDoc(doc.ref);
-                            deletedLogs++;
-                          }
-                          
-                          // Reset consumed for all participants
-                          const { doc: docRef, getDoc, setDoc } = await import('firebase/firestore');
-                          const participantsCol = collection(db, "years", year, "participants");
-                          const participantsSnap = await getDocs(participantsCol);
-                          let resetCount = 0;
-                          
-                          for (const participantDoc of participantsSnap.docs) {
-                            const eventRef = docRef(db, "years", year, "participants", participantDoc.id, "events", selectedEvent);
-                            const eventSnap = await getDoc(eventRef);
-                            
-                            if (eventSnap.exists()) {
-                              const data = eventSnap.data();
-                              if (data.consumed && data.consumed > 0) {
-                                await setDoc(eventRef, {
-                                  consumed: 0,
-                                  redeemed: false,
-                                  redeemedAt: null,
-                                  finalized: false,
-                                }, { merge: true });
-                                resetCount++;
-                              }
-                            }
-                          }
-                          
-                          // Rebuild counters
-                          await rebuildEventStats(year, selectedEvent);
-                          
-                          alert(`✅ ניקוי הושלם!\n\n📋 נמחקו ${deletedLogs} רשומות כניסה\n🔄 אופסו ${resetCount} משתתפים\n\nהמונים עודכנו.`);
-                          
-                          // Refresh display
-                          setEntries([]);
-                          await loadEventStats(selectedEvent);
-                        } catch (error) {
-                          alert(`❌ שגיאה בניקוי: ${error instanceof Error ? error.message : String(error)}`);
-                        } finally {
-                          setStatsLoading(false);
-                        }
-                      }}
-                      disabled={statsLoading}
-                    >
-                      {statsLoading ? "מנקה..." : "🗑️ נקה כל הכניסות"}
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => loadEntries()}
+                    disabled={loadingEntries}
+                  >
+                    {loadingEntries ? (
+                      <>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        טוען רשימת משתתפים...
+                      </>
+                    ) : (
+                      entries.length > 0 ? "רענן רשימה" : "טען רשימת משתתפים"
+                    )}
+                  </Button>
                 </div>
                 {/* Schedule editor */}
                 <div className="rounded-md border p-3 space-y-3">
