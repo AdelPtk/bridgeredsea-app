@@ -286,21 +286,22 @@ const EventsList = ({ participant }: EventsListProps) => {
           const qMap: Record<string, number> = {};
           const cMap: Record<string, number> = {};
           const aMap: Record<string, string | undefined> = {};
+          const fMap: Record<string, boolean> = {};
           for (const [k, st] of Object.entries(statuses)) {
+            // Skip events that don't exist in Firestore (removed by admin)
+            if (st.exists === false) continue;
+            
             rMap[k] = st.redeemed;
             qMap[k] = st.quantity;
             cMap[k] = st.consumed ?? 0;
             aMap[k] = (st as any).redeemedAt;
-            // capture finalized
-            if ((st as any).finalized) {
-              // set boolean map true
-            }
+            fMap[k] = Boolean((st as any).finalized);
           }
           setRedeemedMap(rMap);
           setQuantityMap(qMap);
           setConsumedMap(cMap);
           setRedeemedAtMap(aMap);
-          setFinalizedMap(Object.fromEntries(Object.keys(statuses).map(k => [k, Boolean((statuses as any)[k].finalized)])));
+          setFinalizedMap(fMap);
         }
       } catch (e) {
         if (!cancelled) {
@@ -630,8 +631,10 @@ const EventsList = ({ participant }: EventsListProps) => {
       </Card>
       <AnimatedList
         items={
+          // Filter out events that don't exist in Firestore (removed by admin)
           // Sort so redeemed events appear at the bottom; preserve relative order within groups
           [...availableEvents]
+            .filter(([key]) => quantityMap[key] !== undefined) // Only show events that exist in Firestore
             .sort(([keyA], [keyB]) => {
               const aBottom = !!redeemedMap[keyA] || isEnded(schedules[keyA]);
               const bBottom = !!redeemedMap[keyB] || isEnded(schedules[keyB]);

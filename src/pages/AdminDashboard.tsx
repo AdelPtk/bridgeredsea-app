@@ -4,7 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getYearKey, getEventRedemptionStats, listRedeemedForEvent, setEventRedeemed, getEventTotalsForEvent, clearRedemptionLogsForParticipant, getEventSchedule, setEventSchedule, type EventSchedule, getEventStatusForParticipant, searchParticipants, listEventsForParticipant, setEventFinalized, setParticipantEventQuantity } from "@/services/participants";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { getYearKey, getEventRedemptionStats, listRedeemedForEvent, setEventRedeemed, getEventTotalsForEvent, clearRedemptionLogsForParticipant, getEventSchedule, setEventSchedule, type EventSchedule, getEventStatusForParticipant, searchParticipants, listEventsForParticipant, setEventFinalized, setParticipantEventQuantity, removeEventFromParticipant, addEventToParticipant } from "@/services/participants";
 import { getEventStats, rebuildEventStats } from "@/services/eventStats";
 import { eventColorMap } from "@/lib/eventColors";
 import { X, Loader2 } from "lucide-react";
@@ -67,6 +77,11 @@ export default function AdminDashboard() {
   const [loadingParticipantRows, setLoadingParticipantRows] = useState(false);
   const [qtyEdits, setQtyEdits] = useState<Record<string, string>>({});
   const [savingQty, setSavingQty] = useState<Record<string, boolean>>({});
+  
+  // Add event dialog state
+  const [showAddEventDialog, setShowAddEventDialog] = useState(false);
+  const [selectedEventToAdd, setSelectedEventToAdd] = useState<string | null>(null);
+  const [addEventQuantity, setAddEventQuantity] = useState("1");
 
   const orderedKeys = useMemo(() => (
     ["OPENING","RB1","TERRACE1","SOUPS","COCKTAIL","TERRACE2","RB2","TERRACE3","PRIZES"]
@@ -188,6 +203,57 @@ export default function AdminDashboard() {
     } finally {
       setSavingQty((m) => ({ ...m, [eventKey]: false }));
     }
+  };
+
+  const removeEventFromParticipantRow = async (pid: string, eventKey: string) => {
+    if (!confirm(`האם למחוק את האירוע "${eventNameMap[eventKey] ?? eventKey}" מהמשתתף?\n\nהאירוע לא יופיע יותר ברשימת השוברים שלו.`)) return;
+    setSavingQty((m) => ({ ...m, [eventKey]: true }));
+    try {
+      await removeEventFromParticipant(getYearKey(), pid, eventKey);
+      await loadParticipantEvents(pid);
+    } finally {
+      setSavingQty((m) => ({ ...m, [eventKey]: false }));
+    }
+  };
+
+  const addMissingEvents = (pid: string) => {
+    // Show available events that are NOT in the participant's current list
+    const currentKeys = participantRows.map((r) => r.eventKey);
+    const missingKeys = orderedKeys.filter((k) => !currentKeys.includes(k));
+    
+    if (missingKeys.length === 0) {
+      alert("כל האירועים כבר קיימים עבור המשתתף");
+      return;
+    }
+    
+    // Open dialog with missing events
+    setShowAddEventDialog(true);
+  };
+
+  const confirmAddEvent = async () => {
+    if (!selectedPid || !selectedEventToAdd) return;
+    
+    const quantity = parseInt(addEventQuantity, 10);
+    if (!Number.isFinite(quantity) || quantity < 0) {
+      alert("כמות לא חוקית");
+      return;
+    }
+    
+    setSavingQty((m) => ({ ...m, [selectedEventToAdd]: true }));
+    try {
+      await addEventToParticipant(getYearKey(), selectedPid, selectedEventToAdd, eventNameMap[selectedEventToAdd] ?? selectedEventToAdd, quantity);
+      await loadParticipantEvents(selectedPid);
+      setShowAddEventDialog(false);
+      setSelectedEventToAdd(null);
+      setAddEventQuantity("1");
+    } finally {
+      setSavingQty((m) => ({ ...m, [selectedEventToAdd]: false }));
+    }
+  };
+
+  const getMissingEventKeys = () => {
+    const currentKeys = participantRows.map((r) => r.eventKey);
+    return orderedKeys.filter((k) => !currentKeys.includes(k));
   };
 
   const formatDate = (iso?: string) => {
@@ -583,24 +649,31 @@ export default function AdminDashboard() {
                 {/* Participant events table */}
                 {selectedPid && (
                   <div className="space-y-2">
-                    <h3 className="font-bold text-lg">ניהול אירועים למשתתף {selectedPid}</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-lg">ניהול אירועים למשתתף {selectedPid}</h3>
+                      <Button size="sm" variant="outline" onClick={() => addMissingEvents(selectedPid)}>
+                        + הוסף אירוע
+                      </Button>
+                    </div>
                     {loadingParticipantRows ? (
                       <p className="text-muted-foreground">טוען אירועים…</p>
                     ) : participantRows.length === 0 ? (
                       <p className="text-muted-foreground">לא נמצאו אירועים למשתתף זה.</p>
                     ) : (
                       <div className="overflow-auto rounded-md border">
-                        <table className="w-full min-w-[680px] text-sm table-auto">
+                        <table className="w-full min-w-[800px] text-sm table-auto">
                           <colgroup>
-                            <col style={{ width: "28%" }} /> {/* Event name on the right */}
+                            <col style={{ width: "8%" }} /> {/* Date DD */}
+                            <col style={{ width: "22%" }} /> {/* Event name on the right */}
                             <col style={{ width: "12%" }} /> {/* Quantity */}
-                            <col style={{ width: "12%" }} /> {/* Consumed */}
-                            <col style={{ width: "16%" }} /> {/* Redeemed */}
-                            <col style={{ width: "16%" }} /> {/* Finalized */}
-                            <col style={{ width: "16%" }} /> {/* Actions */}
+                            <col style={{ width: "10%" }} /> {/* Consumed */}
+                            <col style={{ width: "12%" }} /> {/* Redeemed */}
+                            <col style={{ width: "12%" }} /> {/* Finalized */}
+                            <col style={{ width: "24%" }} /> {/* Actions */}
                           </colgroup>
                           <thead className="bg-muted">
                             <tr>
+                              <th className="p-2 text-center whitespace-nowrap">תאריך</th>
                               <th className="p-2 text-right whitespace-nowrap">שם אירוע</th>
                               <th className="p-2 text-center whitespace-nowrap">כמות</th>
                               <th className="p-2 text-center whitespace-nowrap">נצלו</th>
@@ -610,8 +683,22 @@ export default function AdminDashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {participantRows.map((row) => (
+                            {participantRows
+                              .slice()
+                              .sort((a, b) => {
+                                // Sort by chronological order using defaultSchedules
+                                const dateA = defaultSchedules[a.eventKey]?.date || "9999";
+                                const dateB = defaultSchedules[b.eventKey]?.date || "9999";
+                                return dateA.localeCompare(dateB);
+                              })
+                              .map((row) => {
+                              const eventDate = defaultSchedules[row.eventKey]?.date;
+                              const dayOfMonth = eventDate ? eventDate.split('-')[2] : '--';
+                              return (
                               <tr key={row.eventKey} className="border-t">
+                                <td className="p-2 text-center whitespace-nowrap font-bold text-lg">
+                                  {dayOfMonth}
+                                </td>
                                 <td className="p-2 text-right whitespace-nowrap" title={row.name ?? row.eventKey}>
                                   {row.name ?? row.eventKey}
                                 </td>
@@ -652,7 +739,7 @@ export default function AdminDashboard() {
                                   </span>
                                 </td>
                                 <td className="p-2 text-center whitespace-nowrap">
-                                  <div className="flex items-center justify-center gap-2">
+                                  <div className="flex items-center justify-center gap-1">
                                     {row.redeemed ? (
                                       <Button size="sm" variant="destructive" onClick={() => toggleRedeemedForParticipant(selectedPid!, row.eventKey, false)}>בטל</Button>
                                     ) : (
@@ -661,10 +748,14 @@ export default function AdminDashboard() {
                                     <Button size="sm" variant={row.finalized ? "secondary" : "default"} onClick={() => toggleFinalizeForParticipant(selectedPid!, row.eventKey, !row.finalized)}>
                                       {row.finalized ? 'פתח' : 'נעל'}
                                     </Button>
+                                    <Button size="sm" variant="outline" onClick={() => removeEventFromParticipantRow(selectedPid!, row.eventKey)} disabled={!!savingQty[row.eventKey]} title="הסר אירוע (לא זכאי)">
+                                      <X className="h-4 w-4" />
+                                    </Button>
                                   </div>
                                 </td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -675,6 +766,67 @@ export default function AdminDashboard() {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Add Event Dialog */}
+        <AlertDialog open={showAddEventDialog} onOpenChange={setShowAddEventDialog}>
+          <AlertDialogContent dir="rtl" className="sm:max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-center text-xl">הוספת אירוע למשתתף</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-3 text-center text-base">
+                <div>בחר/י אירוע להוספה:</div>
+                <div className="space-y-2">
+                  {getMissingEventKeys().map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => setSelectedEventToAdd(key)}
+                      className={`w-full p-3 text-right rounded border transition-colors ${
+                        selectedEventToAdd === key
+                          ? 'bg-bridge-blue text-white border-bridge-blue'
+                          : 'bg-white hover:bg-gray-50 border-gray-300'
+                      }`}
+                    >
+                      <div className="font-semibold">{eventNameMap[key] ?? key}</div>
+                      <div className="text-sm opacity-80">
+                        {defaultSchedules[key]?.date ? new Date(defaultSchedules[key].date).toLocaleDateString('he-IL') : ''}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {selectedEventToAdd && (
+                  <div className="flex items-center justify-center gap-2 pt-2">
+                    <label className="font-medium">כמות מבוגרים:</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={addEventQuantity}
+                      onChange={(e) => setAddEventQuantity(e.target.value)}
+                      className="w-20 text-center"
+                    />
+                  </div>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex !flex-row w-full justify-center gap-3">
+              <AlertDialogCancel 
+                className="w-28 justify-center !mt-0"
+                onClick={() => {
+                  setSelectedEventToAdd(null);
+                  setAddEventQuantity("1");
+                }}
+              >
+                ביטול
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="w-28 justify-center"
+                disabled={!selectedEventToAdd}
+                onClick={confirmAddEvent}
+              >
+                הוסף
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <SiteFooter />
       </div>
     </div>

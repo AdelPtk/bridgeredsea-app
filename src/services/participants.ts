@@ -26,6 +26,7 @@ export type EventStatus = {
   consumed?: number; // redeemed adults so far
   redeemedAt?: string; // ISO timestamp when fully redeemed
   finalized?: boolean; // final voucher used
+  exists?: boolean; // true if event doc exists in Firestore, false if removed (not eligible)
 };
 export type EventAggregate = {
   redeemedParticipants: number; // number of redeemed participant-docs
@@ -168,11 +169,12 @@ export async function fetchEventsStatus(
       consumed,
   redeemedAt: typeof d.redeemedAt === "string" ? d.redeemedAt : undefined,
   finalized: Boolean((d as any).finalized),
+      exists: true,
     };
   });
-  // Fill requested keys; assume defaults for missing
+  // Fill requested keys; mark missing events as not existing
   for (const key of eventKeys) {
-    result[key] = existing[key] ?? { redeemed: false, quantity: 1, consumed: 0 };
+    result[key] = existing[key] ?? { redeemed: false, quantity: 0, consumed: 0, exists: false };
   }
   return result;
 }
@@ -410,6 +412,68 @@ export async function setParticipantEventQuantity(
   }
   invalidateCachesForEvent(year, eventKey);
 }
+
+/** Remove event from a specific participant (marks as "not eligible") */
+export async function removeEventFromParticipant(year: string, participantId: string, eventKey: string): Promise<void> {
+  if (!db) return;
+  const ref = eventDocRef(year, participantId, eventKey);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  
+  const data = snap.data();
+  const prevQty = typeof data.quantity === "number" ? data.quantity : 0;
+  const prevConsumed = typeof data.consumed === "number" ? data.consumed : 0;
+  
+  // Delete the event document
+  await deleteDoc(ref);
+  
+  // Update event stats: remove this participant's eligibility
+  await incrementEventStats(year, eventKey, { 
+    eligibleDelta: -prevQty,
+    consumedDelta: -prevConsumed,
+    participantsDelta: -1
+  });
+  
+  invalidateCachesForEvent(year, eventKey);
+}
+
+/** Add event back to a specific participant (restore eligibility) */
+export async function addEventToParticipant(
+  year: string,
+  participantId: string,
+  eventKey: string,
+  eventName: string,
+  quantity: number = 1
+): Promise<void> {
+  if (!db) return;
+  const ref = eventDocRef(year, participantId, eventKey);
+  const snap = await getDoc(ref);
+  if (snap.exists()) return; // Already exists, don't re-add
+  
+  // Create new event document
+  await setDoc(ref, {
+    eventKey,
+    name: eventName,
+    description: "",
+    value: "",
+    quantity,
+    consumed: 0,
+    redeemed: false,
+    finalized: false,
+    year,
+    participantId,
+    _createdAt: new Date().toISOString(),
+  });
+  
+  // Update event stats: add this participant's eligibility
+  await incrementEventStats(year, eventKey, { 
+    eligibleDelta: quantity,
+    participantsDelta: 1
+  });
+  
+  invalidateCachesForEvent(year, eventKey);
+}
+
 /** Remove a specific event doc for all participants in a year. Returns number of participants processed. */
 export async function removeEventForAllParticipants(year: string, eventKey: string): Promise<number> {
   if (!db) return 0; // Firestore not available
