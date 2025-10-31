@@ -474,6 +474,41 @@ export async function addEventToParticipant(
   invalidateCachesForEvent(year, eventKey);
 }
 
+/** Delete participant completely - removes participant doc and all event subdocs */
+export async function deleteParticipant(year: string, participantId: string): Promise<void> {
+  if (!db) return;
+  const pid = String(participantId).trim();
+  if (!pid) return;
+  
+  // First, get all events for this participant to update stats
+  const eventsCol = collection(db, "years", year, "participants", pid, "events");
+  const eventsSnap = await getDocs(eventsCol);
+  
+  // Delete all event subdocs and update stats
+  for (const eventDoc of eventsSnap.docs) {
+    const eventData = eventDoc.data();
+    const eventKey = eventDoc.id;
+    const qty = typeof eventData.quantity === "number" ? eventData.quantity : 0;
+    const consumed = typeof eventData.consumed === "number" ? eventData.consumed : 0;
+    
+    // Delete event doc
+    await deleteDoc(eventDoc.ref);
+    
+    // Update event stats: remove this participant's contribution
+    await incrementEventStats(year, eventKey, {
+      eligibleDelta: -qty,
+      consumedDelta: -consumed,
+      participantsDelta: -1
+    });
+    
+    invalidateCachesForEvent(year, eventKey);
+  }
+  
+  // Finally, delete the participant document itself
+  const participantRef = participantDocRef(year, pid);
+  await deleteDoc(participantRef);
+}
+
 /** Remove a specific event doc for all participants in a year. Returns number of participants processed. */
 export async function removeEventForAllParticipants(year: string, eventKey: string): Promise<number> {
   if (!db) return 0; // Firestore not available

@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getYearKey, getEventRedemptionStats, listRedeemedForEvent, setEventRedeemed, getEventTotalsForEvent, clearRedemptionLogsForParticipant, getEventSchedule, setEventSchedule, type EventSchedule, getEventStatusForParticipant, searchParticipants, listEventsForParticipant, setEventFinalized, setParticipantEventQuantity, removeEventFromParticipant, addEventToParticipant } from "@/services/participants";
+import { getYearKey, getEventRedemptionStats, listRedeemedForEvent, setEventRedeemed, getEventTotalsForEvent, clearRedemptionLogsForParticipant, getEventSchedule, setEventSchedule, type EventSchedule, getEventStatusForParticipant, searchParticipants, listEventsForParticipant, setEventFinalized, setParticipantEventQuantity, removeEventFromParticipant, addEventToParticipant, deleteParticipant } from "@/services/participants";
 import { getEventStats, rebuildEventStats } from "@/services/eventStats";
 import { eventColorMap } from "@/lib/eventColors";
 import { X, Loader2 } from "lucide-react";
@@ -82,6 +82,10 @@ export default function AdminDashboard() {
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
   const [selectedEventToAdd, setSelectedEventToAdd] = useState<string | null>(null);
   const [addEventQuantity, setAddEventQuantity] = useState("1");
+  
+  // Delete participant dialog state
+  const [showDeleteParticipantDialog, setShowDeleteParticipantDialog] = useState(false);
+  const [deletingParticipant, setDeletingParticipant] = useState(false);
 
   const orderedKeys = useMemo(() => (
     ["OPENING","RB1","TERRACE1","SOUPS","COCKTAIL","TERRACE2","RB2","TERRACE3","PRIZES"]
@@ -254,6 +258,25 @@ export default function AdminDashboard() {
   const getMissingEventKeys = () => {
     const currentKeys = participantRows.map((r) => r.eventKey);
     return orderedKeys.filter((k) => !currentKeys.includes(k));
+  };
+
+  const confirmDeleteParticipant = async () => {
+    if (!selectedPid) return;
+    
+    setDeletingParticipant(true);
+    try {
+      await deleteParticipant(getYearKey(), selectedPid);
+      setShowDeleteParticipantDialog(false);
+      setSelectedPid(null);
+      setParticipantRows([]);
+      setResults(results.filter((r) => r.id !== selectedPid));
+      alert("המשתתף נמחק בהצלחה");
+    } catch (error) {
+      console.error("Error deleting participant:", error);
+      alert("שגיאה במחיקת המשתתף");
+    } finally {
+      setDeletingParticipant(false);
+    }
   };
 
   const formatDate = (iso?: string) => {
@@ -651,9 +674,18 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <h3 className="font-bold text-lg">ניהול אירועים למשתתף {selectedPid}</h3>
-                      <Button size="sm" variant="outline" onClick={() => addMissingEvents(selectedPid)}>
-                        + הוסף אירוע
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => addMissingEvents(selectedPid)}>
+                          + הוסף אירוע
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          onClick={() => setShowDeleteParticipantDialog(true)}
+                        >
+                          🗑️ מחיקת משתתף
+                        </Button>
+                      </div>
                     </div>
                     {loadingParticipantRows ? (
                       <p className="text-muted-foreground">טוען אירועים…</p>
@@ -822,6 +854,41 @@ export default function AdminDashboard() {
                 onClick={confirmAddEvent}
               >
                 הוסף
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Participant Dialog */}
+        <AlertDialog open={showDeleteParticipantDialog} onOpenChange={setShowDeleteParticipantDialog}>
+          <AlertDialogContent dir="rtl" className="sm:max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-center text-xl text-red-600">⚠️ מחיקת משתתף</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-3 text-center text-base">
+                <div className="font-bold text-lg">האם את בטוחה שברצונך למחוק את המשתתף?</div>
+                <div className="text-red-600 font-semibold">
+                  מזהה: {selectedPid}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  פעולה זו תמחק את המשתתף ואת כל האירועים שלו מהמערכת.
+                  <br />
+                  <strong>לא ניתן לשחזר את הנתונים!</strong>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex !flex-row w-full justify-center gap-3">
+              <AlertDialogCancel 
+                className="w-28 justify-center !mt-0"
+                disabled={deletingParticipant}
+              >
+                לא, ביטול
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="w-28 justify-center bg-red-600 hover:bg-red-700"
+                disabled={deletingParticipant}
+                onClick={confirmDeleteParticipant}
+              >
+                {deletingParticipant ? "מוחק..." : "כן, מחק"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
