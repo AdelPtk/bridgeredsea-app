@@ -474,17 +474,45 @@ export async function addEventToParticipant(
   invalidateCachesForEvent(year, eventKey);
 }
 
-/** Delete participant completely - removes participant doc and all event subdocs */
+/** Delete participant - archives to deletedParticipants collection before removing */
 export async function deleteParticipant(year: string, participantId: string): Promise<void> {
   if (!db) return;
   const pid = String(participantId).trim();
   if (!pid) return;
   
-  // First, get all events for this participant to update stats
+  // Get participant data for archiving
+  const participantRef = participantDocRef(year, pid);
+  const participantSnap = await getDoc(participantRef);
+  
+  if (!participantSnap.exists()) {
+    throw new Error("Participant not found");
+  }
+  
+  const participantData = participantSnap.data();
+  
+  // Get all events for this participant
   const eventsCol = collection(db, "years", year, "participants", pid, "events");
   const eventsSnap = await getDocs(eventsCol);
   
-  // Delete all event subdocs and update stats
+  // Collect all events data
+  const eventsData: any[] = [];
+  for (const eventDoc of eventsSnap.docs) {
+    eventsData.push({
+      eventKey: eventDoc.id,
+      ...eventDoc.data()
+    });
+  }
+  
+  // Archive to deletedParticipants collection
+  const deletedRef = doc(db, "years", year, "deletedParticipants", pid);
+  await setDoc(deletedRef, {
+    ...participantData,
+    events: eventsData,
+    _deletedAt: new Date().toISOString(),
+    _originalId: pid,
+  });
+  
+  // Now delete all event subdocs and update stats
   for (const eventDoc of eventsSnap.docs) {
     const eventData = eventDoc.data();
     const eventKey = eventDoc.id;
@@ -505,8 +533,80 @@ export async function deleteParticipant(year: string, participantId: string): Pr
   }
   
   // Finally, delete the participant document itself
-  const participantRef = participantDocRef(year, pid);
   await deleteDoc(participantRef);
+}
+
+/** Restore deleted participant from archive */
+export async function restoreDeletedParticipant(year: string, participantId: string): Promise<void> {
+  if (!db) return;
+  const pid = String(participantId).trim();
+  if (!pid) return;
+  
+  // Get archived participant
+  const deletedRef = doc(db, "years", year, "deletedParticipants", pid);
+  const deletedSnap = await getDoc(deletedRef);
+  
+  if (!deletedSnap.exists()) {
+    throw new Error("Deleted participant not found in archive");
+  }
+  
+  const archivedData = deletedSnap.data();
+  const { events, _deletedAt, _originalId, ...participantData } = archivedData;
+  
+  // Restore participant document
+  const participantRef = participantDocRef(year, pid);
+  await setDoc(participantRef, participantData);
+  
+  // Restore all events
+  if (Array.isArray(events)) {
+    for (const eventData of events) {
+      const { eventKey, ...eventFields } = eventData;
+      if (!eventKey) continue;
+      
+      const eventRef = eventDocRef(year, pid, eventKey);
+      await setDoc(eventRef, eventFields);
+      
+      // Update event stats: add back this participant's contribution
+      const qty = typeof eventFields.quantity === "number" ? eventFields.quantity : 0;
+      const consumed = typeof eventFields.consumed === "number" ? eventFields.consumed : 0;
+      
+      await incrementEventStats(year, eventKey, {
+        eligibleDelta: qty,
+        consumedDelta: consumed,
+        participantsDelta: 1
+      });
+      
+      invalidateCachesForEvent(year, eventKey);
+    }
+  }
+  
+  // Remove from deleted collection
+  await deleteDoc(deletedRef);
+}
+
+/** Get list of deleted participants */
+export async function listDeletedParticipants(year: string): Promise<Array<{ id: string; name?: string; deletedAt?: string; [key: string]: any }>> {
+  if (!db) return [];
+  const deletedCol = collection(db, "years", year, "deletedParticipants");
+  const snap = await getDocs(deletedCol);
+  
+  const deleted: Array<{ id: string; name?: string; deletedAt?: string; [key: string]: any }> = [];
+  snap.forEach((docSnap) => {
+    const data = docSnap.data();
+    deleted.push({
+      id: docSnap.id,
+      name: data.NAME ?? data.name,
+      deletedAt: data._deletedAt,
+      ...data
+    });
+  });
+  
+  // Sort by deletion date (newest first)
+  return deleted.sort((a, b) => {
+    const dateA = a.deletedAt || "";
+    const dateB = b.deletedAt || "";
+    return dateB.localeCompare(dateA);
+  });
 }
 
 /** Remove a specific event doc for all participants in a year. Returns number of participants processed. */
