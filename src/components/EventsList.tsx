@@ -810,7 +810,7 @@ const EventsList = ({ participant }: EventsListProps) => {
             {/* Instructions text */}
             <p className="text-base italic text-white px-4 text-center max-w-sm mx-auto leading-relaxed">
               {isEnglish 
-                ? "Present this voucher during game sessions at the Royal Beach Hall to receive complimentary coffee or cake"
+                ? "Present this voucher during game sessions at the Royal Beach Hall to receive coffee or cake"
                 : "יש להציג שובר זה בעת המשחקים באולם רויאל ביץ׳ לקבלת קפה או עוגה"
               }
             </p>
