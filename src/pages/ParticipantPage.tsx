@@ -135,11 +135,7 @@ const ParticipantPage = () => {
                   />
                   {error && <p className="text-sm text-red-600">{error}</p>}
                 </div>
-                <Button 
-                  type="submit" 
-                  className="w-full text-white"
-                  style={{background: 'linear-gradient(to right, #1b248b, #e7354b)'}}
-                >
+                <Button type="submit" className="w-full bg-bridge-blue hover:bg-bridge-blue/90">
                   כניסה
                 </Button>
               </form>

@@ -66,11 +66,7 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
                   />
                   {idError && <p className="text-sm text-red-600">{idError}</p>}
                 </div>
-                <Button 
-                  type="submit" 
-                  className="w-full text-white"
-                  style={{background: 'linear-gradient(to right, #1b248b, #e7354b)'}}
-                >
+                <Button type="submit" className="w-full bg-bridge-blue hover:bg-bridge-blue/90">
                   כניסה
                 </Button>
               </form>
