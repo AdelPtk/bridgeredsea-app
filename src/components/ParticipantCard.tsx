@@ -27,10 +27,11 @@ const ParticipantCard = ({ participant }: ParticipantCardProps) => {
     // Hotel English mapping (expanded; handles common variants)
     const hotelEnMap: Record<string, string> = {
       "רויאל ביץ'": "Royal Beach",
-      "רויאל ביץ": "Royal Beach",
-      "רויאל גארדן": "Royal Garden",
+      "המלך שלמה": "King Solomon",
       "ספורט": "Sport",
-      "לגונה": "Laguna",
+      "לגונה": "Lagoona",
+      "ריביירה": "Riviera",
+      "רויאל גארדן": "Royal Garden",
     };
     const normalizeHotel = (s: unknown) =>
       String(s ?? "")

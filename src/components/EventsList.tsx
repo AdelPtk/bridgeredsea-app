@@ -49,6 +49,22 @@ const EventsList = ({ participant }: EventsListProps) => {
   const [loadingStatus, setLoadingStatus] = useState<boolean>(true);
   const { isEnglish, toggle } = useLang();
 
+  // Hotel name translation map (Hebrew to English)
+  const hotelNameMap: Record<string, string> = {
+    "רויאל ביץ'": "Royal Beach",
+    "המלך שלמה": "King Solomon",
+    "ספורט": "Sport",
+    "לגונה": "Lagoona",
+    "ריביירה": "Riviera",
+    "רויאל גארדן": "Royal Garden",
+  };
+
+  // Function to get hotel name in the appropriate language
+  const getHotelName = (hebrewName: string): string => {
+    if (!isEnglish) return hebrewName;
+    return hotelNameMap[hebrewName] || hebrewName;
+  };
+
   // Very light pastel rainbow-like colors (strongly mixed with white)
   const pastelBGs = [
     "#FFE4E6", // light rose/red (a bit darker)
@@ -788,7 +804,7 @@ const EventsList = ({ participant }: EventsListProps) => {
               </div>
               <div>
                 {isEnglish ? "Hotel: " : "מלון: "}
-                <span className="font-bold">{participant.HOTEL || ""}</span>
+                <span className="font-bold">{getHotelName(participant.HOTEL || "")}</span>
               </div>
             </div>
             {/* Instructions text */}
