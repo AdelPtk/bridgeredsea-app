@@ -770,37 +770,43 @@ const EventsList = ({ participant }: EventsListProps) => {
       />
       
       {/* Coffee & Cake Voucher */}
-      <Card className="mt-6 mb-6 rounded-lg overflow-hidden shadow-lg" style={{
+      <div className="mt-6 mb-6 p-1 rounded-lg" style={{
         background: 'linear-gradient(to right, #1b248b, #e7354b)'
       }}>
-        <CardContent className="p-6 space-y-4">
-          <h2 className="text-center text-2xl font-bold text-white">
-            {isEnglish ? "Coffee & Cake Voucher" : "שובר קפה ועוגה"}
-          </h2>
-          {/* Participant details */}
-          <div className="text-center space-y-1 text-white text-sm font-medium">
-            <div>
-              {isEnglish ? "Name: " : "שם: "}
-              <span className="font-bold">{participant.NAME || ""}</span>
+        <Card className="rounded-lg overflow-hidden shadow-lg border-4 border-dashed border-white bg-transparent">
+          <CardContent className="p-6 space-y-4" style={{
+            background: 'linear-gradient(to right, #1b248b, #e7354b)'
+          }}>
+            <h2 className="text-center text-2xl font-bold text-white">
+              {isEnglish ? "Coffee & Cake Voucher" : "שובר קפה ועוגה"}
+            </h2>
+            {/* Participant details */}
+            <div className="text-center space-y-1 text-white text-sm font-medium">
+              <div>
+                {isEnglish ? "Name: " : "שם: "}
+                <span className="font-bold">{participant.NAME || ""}</span>
+              </div>
+              <div>
+                {isEnglish ? "Hotel: " : "מלון: "}
+                <span className="font-bold">{participant.HOTEL || ""}</span>
+              </div>
             </div>
-            <div>
-              {isEnglish ? "Hotel: " : "מלון: "}
-              <span className="font-bold">{participant.HOTEL || ""}</span>
-            </div>
-          </div>
-          <div className="text-center space-y-3">
-            <div className="text-6xl">
-              ☕ 🍰
-            </div>
-            <p className="text-base font-medium text-white px-4">
+            {/* Instructions text */}
+            <p className="text-base font-medium text-white px-4 text-center">
               {isEnglish 
                 ? "Present this voucher during game sessions at the Royal Beach Hall to receive complimentary coffee or cake"
                 : "יש להציג שובר זה בעת המשחקים באולם רויאל ביץ׳ לקבלת קפה או עוגה"
               }
             </p>
-          </div>
-        </CardContent>
-      </Card>
+            {/* Divider line */}
+            <div className="border-t-2 border-dashed border-white my-4"></div>
+            {/* Icons */}
+            <div className="text-center text-6xl">
+              ☕ 🍰
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Useful links grid - 2x2 with images and captions */}
       <Card className="rounded-lg overflow-hidden shadow-lg" style={{
