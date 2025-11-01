@@ -768,6 +768,36 @@ const EventsList = ({ participant }: EventsListProps) => {
         displayScrollbar={true}
         className="animated-list-scrollbar"
       />
+      
+      {/* Coffee & Cake Voucher */}
+      <div className="mt-6 mb-6">
+        <div 
+          className="rounded-lg overflow-hidden border-4 bg-white"
+          style={{
+            borderImage: 'linear-gradient(to right, #1b248b, #e7354b) 1'
+          }}
+        >
+          <div className="p-6 space-y-4">
+            <h2 className="text-center text-2xl font-bold bg-gradient-to-r from-bridge-blue to-bridge-red bg-clip-text text-transparent">
+              {isEnglish ? "Coffee & Cake Voucher" : "שובר קפה ועוגה"}
+            </h2>
+            <div className="text-center space-y-2">
+              <p className="text-base font-medium text-bridge-black">
+                {isEnglish 
+                  ? "Present this voucher during game sessions at the Royal Beach Hall to receive complimentary coffee or cake"
+                  : "יש להציג שובר זה בעת המשחקים באולם רויאל ביץ׳ לקבלת קפה או עוגה"
+                }
+              </p>
+              <div className="pt-2">
+                <div className="inline-block bg-gradient-to-r from-bridge-blue to-bridge-red text-white px-6 py-3 rounded-full font-bold text-lg">
+                  {isEnglish ? "☕ Coffee OR 🧁 Cake" : "☕ קפה או 🧁 עוגה"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Useful links grid - 2x2 with images and captions */}
       <Card className="rounded-lg overflow-hidden border border-bridge-blue/20 bg-white">
         <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
