@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 import { useLang } from "@/hooks/use-lang";
 import SiteFooter from "@/components/SiteFooter";
 import logoWA from "../../LOGO_WA.png";
@@ -148,7 +149,11 @@ const ParticipantPage = () => {
   }
 
   if (loading) {
-    return <div className="text-center py-12">טוען נתונים...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-bridge-blue" />
+      </div>
+    );
   }
   if (!participant) {
     return (
