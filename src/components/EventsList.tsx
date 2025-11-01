@@ -770,14 +770,14 @@ const EventsList = ({ participant }: EventsListProps) => {
       />
       
       {/* Coffee & Cake Voucher */}
-      <div className="mt-6 mb-6 p-1 rounded-lg" style={{
+      <div className="mt-6 mb-6 rounded-lg" style={{
         background: 'linear-gradient(to right, #1b248b, #e7354b)'
       }}>
         <Card className="rounded-lg overflow-hidden shadow-lg border-4 border-dashed border-white bg-transparent">
           <CardContent className="p-6 space-y-4" style={{
             background: 'linear-gradient(to right, #1b248b, #e7354b)'
           }}>
-            <h2 className="text-center text-2xl font-bold text-white">
+            <h2 className="text-center text-4xl font-bold text-white">
               {isEnglish ? "Coffee & Cake Voucher" : "שובר קפה ועוגה"}
             </h2>
             {/* Participant details */}
@@ -792,7 +792,7 @@ const EventsList = ({ participant }: EventsListProps) => {
               </div>
             </div>
             {/* Instructions text */}
-            <p className="text-base font-medium text-white px-4 text-center">
+            <p className="text-base italic text-white px-4 text-center max-w-xs mx-auto leading-relaxed">
               {isEnglish 
                 ? "Present this voucher during game sessions at the Royal Beach Hall to receive complimentary coffee or cake"
                 : "יש להציג שובר זה בעת המשחקים באולם רויאל ביץ׳ לקבלת קפה או עוגה"
