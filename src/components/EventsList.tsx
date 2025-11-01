@@ -899,12 +899,12 @@ const EventsList = ({ participant }: EventsListProps) => {
                   } else if (ev?.date) {
                     dateText = ev.date.split(" ")[0];
                   }
-                  const timeText = sch?.openTime && sch?.closeTime ? `${sch.openTime} - ${sch.closeTime}` : "";
+                  const timeText = sch?.openTime ? sch.openTime : "";
                   const locText = isEnglish ? ev?.locationEn : ev?.location;
                   return (
                     <div className="space-y-1 text-center">
                       <div className="font-bold">{isEnglish ? "Date" : "תאריך"}: {dateText}</div>
-                      <div className="font-bold">{isEnglish ? "Event Time" : "שעת האירוע"}: {timeText}</div>
+                      <div className="font-bold">{isEnglish ? "Time" : "שעה"}: {timeText}</div>
                       <div className="font-bold">{isEnglish ? "Location" : "מיקום"}: {locText}</div>
                     </div>
                   );
