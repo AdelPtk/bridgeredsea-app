@@ -911,8 +911,8 @@ const EventsList = ({ participant }: EventsListProps) => {
                 })()}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="flex w-full justify-center gap-3">
-              <AlertDialogAction className="w-28 justify-center" onClick={() => setBlockedInfo(null)}>
+            <AlertDialogFooter className="flex w-full justify-center items-center">
+              <AlertDialogAction className="w-28" onClick={() => setBlockedInfo(null)}>
                 {isEnglish ? "OK" : "אישור"}
               </AlertDialogAction>
             </AlertDialogFooter>
