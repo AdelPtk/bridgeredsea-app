@@ -59,7 +59,7 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
                   <Label htmlFor="participant-id">קוד משתתף</Label>
                   <Input
                     id="participant-id"
-                    inputMode="numeric"
+                    inputMode="text"
                     maxLength={6}
                     value={enteredId}
                     onChange={(e) => setEnteredId(e.target.value.replace(/\s+/g, ""))}
