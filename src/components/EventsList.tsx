@@ -777,6 +777,17 @@ const EventsList = ({ participant }: EventsListProps) => {
           <h2 className="text-center text-2xl font-bold text-white">
             {isEnglish ? "Coffee & Cake Voucher" : "שובר קפה ועוגה"}
           </h2>
+          {/* Participant details */}
+          <div className="text-center space-y-1 text-white text-sm font-medium">
+            <div>
+              {isEnglish ? "Name: " : "שם: "}
+              <span className="font-bold">{participant.NAME || ""}</span>
+            </div>
+            <div>
+              {isEnglish ? "Hotel: " : "מלון: "}
+              <span className="font-bold">{participant.HOTEL || ""}</span>
+            </div>
+          </div>
           <div className="text-center space-y-3">
             <div className="text-6xl">
               ☕ 🍰
@@ -792,13 +803,15 @@ const EventsList = ({ participant }: EventsListProps) => {
       </Card>
 
       {/* Useful links grid - 2x2 with images and captions */}
-      <Card className="rounded-lg overflow-hidden border border-bridge-blue/20 bg-white">
-        <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
+      <Card className="rounded-lg overflow-hidden shadow-lg" style={{
+        background: 'linear-gradient(to right, #1b248b, #e7354b)'
+      }}>
+        <CardHeader className="text-white">
           <CardTitle className="text-center text-2xl font-bold">
             {isEnglish ? "Useful Links" : "קישורים שימושיים"}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="p-4 bg-white">
           <div className="grid grid-cols-2 gap-6">
             {/* TL - Booklet */}
             <div className="flex flex-col items-center text-center">
