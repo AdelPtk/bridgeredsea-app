@@ -537,7 +537,8 @@ const EventsList = ({ participant }: EventsListProps) => {
                           }
                         }}>
                           <Button
-                            className="mx-auto group bg-gradient-to-r from-bridge-blue to-bridge-red text-white hover:from-bridge-blue/90 hover:to-bridge-red/90 shadow-md hover:shadow-lg rounded-full px-4 py-2 text-base leading-tight transition-all w-auto min-w-[8rem] justify-center"
+                            className="mx-auto group text-white shadow-md hover:shadow-lg rounded-full px-4 py-2 text-base leading-tight transition-all w-auto min-w-[8rem] justify-center"
+                            style={{background: 'linear-gradient(to right, #1b248b, #e7354b)'}}
                             disabled={loadingStatus || remaining <= 0}
                           >
                             {isEnglish ? "Redeem" : "לכניסה"}
@@ -729,7 +730,8 @@ const EventsList = ({ participant }: EventsListProps) => {
                         }
                       }}>
                         <Button
-                          className="group bg-gradient-to-r from-bridge-blue to-bridge-red text-white hover:from-bridge-blue/90 hover:to-bridge-red/90 shadow-md hover:shadow-lg rounded-full px-3 py-1.5 text-sm leading-tight transition-all w-auto min-w-0"
+                          className="group text-white shadow-md hover:shadow-lg rounded-full px-3 py-1.5 text-sm leading-tight transition-all w-auto min-w-0"
+                          style={{background: 'linear-gradient(to right, #1b248b, #e7354b)'}}
         disabled={loadingStatus || remaining <= 0}
                         >
                           {isEnglish ? "Redeem" : "לכניסה"}

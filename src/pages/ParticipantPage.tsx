@@ -120,7 +120,7 @@ const ParticipantPage = () => {
             <img src={bannerSrc} alt="RedSea Bridge Festival" className="max-h-24 w-auto" />
           </div>
           <Card className="border border-bridge-blue/20 shadow-xl overflow-hidden rounded-lg">
-            <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
+            <CardHeader className="text-white" style={{background: 'linear-gradient(to right, #1b248b, #e7354b)'}}>
               <CardTitle className="text-center text-xl font-bold">כניסה עם קוד משתתף</CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
@@ -160,7 +160,7 @@ const ParticipantPage = () => {
       <div className="min-h-screen" dir="rtl">
         <div className="container mx-auto px-4 py-8 max-w-md space-y-6">
           <Card className="border border-bridge-blue/20 shadow-xl overflow-hidden rounded-lg">
-            <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
+            <CardHeader className="text-white" style={{background: 'linear-gradient(to right, #1b248b, #e7354b)'}}>
               <CardTitle className="text-center text-xl font-bold">מספר זיהוי שגוי!</CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4 text-center" dir="rtl">

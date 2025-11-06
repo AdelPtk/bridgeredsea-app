@@ -363,7 +363,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen" dir="rtl">
       <div className="container mx-auto px-4 py-8 space-y-6 max-w-6xl">
         <Card className="border-2 border-bridge-blue/20 shadow-xl overflow-hidden rounded-lg">
-          <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
+          <CardHeader className="text-white" style={{background: 'linear-gradient(to right, #1b248b, #e7354b)'}}>
             <CardTitle className="text-center text-xl font-bold">דשבורד ניהול</CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-6">

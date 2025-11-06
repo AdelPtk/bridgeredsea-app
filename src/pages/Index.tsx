@@ -161,7 +161,7 @@ const Index = () => {
 
   {/* Main Card */}
   <Card className="w-full max-w-md mx-auto border-2 border-bridge-blue/20 shadow-xl overflow-hidden rounded-lg">
-          <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
+          <CardHeader className="text-white" style={{background: 'linear-gradient(to right, #1b248b, #e7354b)'}}>
             <CardTitle className="text-center text-xl font-bold">
               כניסה למערכת
             </CardTitle>
@@ -172,7 +172,8 @@ const Index = () => {
             {/* כפתור גישה למסך הזנת קוד (ENTER) */}
             <div className="space-y-2">
               <Button
-                className="w-full bg-gradient-to-r from-bridge-blue to-bridge-red text-white hover:from-bridge-blue/90 hover:to-bridge-red/90 shadow-md hover:shadow-lg"
+                className="w-full text-white shadow-md hover:shadow-lg"
+                style={{background: 'linear-gradient(to right, #1b248b, #e7354b)'}}
                 onClick={() => navigate("/events?id=ENTER")}
               >
                 הזנת קוד משתתף

@@ -51,7 +51,7 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
           </div>
           {/* Participant code entry box (copied from /events?id=ENTER) */}
           <Card className="border border-bridge-blue/20 shadow-xl overflow-hidden rounded-lg text-right" dir="rtl">
-            <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
+            <CardHeader className="text-white" style={{background: 'linear-gradient(to right, #1b248b, #e7354b)'}}>
               <CardTitle className="text-center text-xl font-bold">כניסה עם קוד משתתף</CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
