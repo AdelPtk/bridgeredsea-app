@@ -422,7 +422,6 @@ export default function AdminDashboard() {
                     {loadingEntries ? (
                       <>
                         <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                        טוען רשימת משתתפים...
                       </>
                     ) : (
                       entries.length > 0 ? "רענן רשימה" : "טען רשימת משתתפים"
@@ -688,7 +687,9 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     {loadingParticipantRows ? (
-                      <p className="text-muted-foreground">טוען אירועים…</p>
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-bridge-blue" />
+                      </div>
                     ) : participantRows.length === 0 ? (
                       <p className="text-muted-foreground">לא נמצאו אירועים למשתתף זה.</p>
                     ) : (

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
 export default function RequireAdmin({ children }: { children: React.ReactNode }) {
   const { loading, user, isAdmin, signInWithEmailPassword, signOutNow } = useAuth();
@@ -32,7 +33,7 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
   if (loading) {
     return (
       <div className="min-h-[40vh] flex items-center justify-center">
-        <div className="text-sm text-muted-foreground">טוען…</div>
+        <Loader2 className="h-8 w-8 animate-spin text-bridge-blue" />
       </div>
     );
   }
