@@ -852,16 +852,16 @@ export async function getParticipant(year: string, participantId: string): Promi
   return snap.exists() ? snap.data() : null;
 }
 
-/** Search participants by exact ID or by name prefix (HEB/ENG) */
+/** Search participants by exact ID or by name (flexible search - finds partial matches anywhere in name) */
 export async function searchParticipants(year: string, term: string): Promise<BasicParticipant[]> {
   if (!db) return [];
-  const q = (term || "").trim();
+  const q = (term || "").trim().toLowerCase();
   if (!q) return [];
   const out: BasicParticipant[] = [];
 
   // Try exact ID first
   try {
-    const idRef = doc(db, "years", year, "participants", q);
+    const idRef = doc(db, "years", year, "participants", term.trim());
     const idSnap = await getDoc(idRef);
     if (idSnap.exists()) {
       const d = idSnap.data() as any;
@@ -869,15 +869,19 @@ export async function searchParticipants(year: string, term: string): Promise<Ba
     }
   } catch {}
 
-  // Name prefix search (requires index on NAME)
+  // Flexible name search - get all participants and filter client-side
+  // This allows finding "שמואל" in "כהן שמואל" regardless of word order
   try {
     const col = collection(db, "years", year, "participants");
-    const q1 = query(col, orderBy("NAME"), where("NAME", ">=", q), where("NAME", "<=", q + "\uf8ff"), limit(10));
-    const snap = await getDocs(q1);
+    const snap = await getDocs(col);
     snap.forEach((d) => {
       if (!out.find((p) => p.id === d.id)) {
         const v = d.data() as any;
-        out.push({ id: d.id, name: v.NAME ?? v.name, hotel: v.HOTEL ?? v.hotel, adults: Number(v.ADULTS ?? v.adults) || 1 });
+        const name = (v.NAME ?? v.name ?? "").toLowerCase();
+        // Check if search term appears anywhere in the name
+        if (name.includes(q)) {
+          out.push({ id: d.id, name: v.NAME ?? v.name, hotel: v.HOTEL ?? v.hotel, adults: Number(v.ADULTS ?? v.adults) || 1 });
+        }
       }
     });
   } catch {}

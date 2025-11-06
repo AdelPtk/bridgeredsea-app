@@ -17,7 +17,7 @@ import {
 import { getYearKey, getEventRedemptionStats, listRedeemedForEvent, setEventRedeemed, getEventTotalsForEvent, clearRedemptionLogsForParticipant, getEventSchedule, setEventSchedule, type EventSchedule, getEventStatusForParticipant, searchParticipants, listEventsForParticipant, setEventFinalized, setParticipantEventQuantity, removeEventFromParticipant, addEventToParticipant, deleteParticipant } from "@/services/participants";
 import { getEventStats, rebuildEventStats } from "@/services/eventStats";
 import { eventColorMap } from "@/lib/eventColors";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, ExternalLink } from "lucide-react";
 import SiteFooter from "@/components/SiteFooter";
 
 const eventNameMap: Record<string, string> = {
@@ -652,18 +652,31 @@ export default function AdminDashboard() {
                 {results.length > 0 && (
                   <div className="rounded-md border divide-y">
                     {results.map((r) => (
-                      <button
+                      <div
                         key={r.id}
-                        onClick={() => loadParticipantEvents(r.id)}
-                        className={`w-full text-right p-3 hover:bg-muted/50 ${selectedPid === r.id ? 'bg-muted/50' : ''}`}
+                        className={`flex items-center gap-2 p-3 hover:bg-muted/50 ${selectedPid === r.id ? 'bg-muted/50' : ''}`}
                       >
-                        <div className="font-medium">{r.name ?? r.id}</div>
-                        <div className="text-xs text-muted-foreground flex gap-3">
-                          <span>מזהה: {r.id}</span>
-                          {r.hotel ? <span>מלון: {r.hotel}</span> : null}
-                          {typeof r.adults === 'number' ? <span>מבוגרים: {r.adults}</span> : null}
-                        </div>
-                      </button>
+                        <button
+                          onClick={() => loadParticipantEvents(r.id)}
+                          className="flex-1 text-right"
+                        >
+                          <div className="font-medium">{r.name ?? r.id}</div>
+                          <div className="text-xs text-muted-foreground flex gap-3">
+                            <span>מזהה: {r.id}</span>
+                            {r.hotel ? <span>מלון: {r.hotel}</span> : null}
+                            {typeof r.adults === 'number' ? <span>מבוגרים: {r.adults}</span> : null}
+                          </div>
+                        </button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50 shrink-0"
+                          onClick={() => window.open(`${window.location.origin}/?id=${r.id}`, '_blank')}
+                          title="פתח בחלונית חדשה"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 )}
