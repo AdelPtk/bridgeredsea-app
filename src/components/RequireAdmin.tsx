@@ -32,7 +32,7 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
 
   if (loading) {
     return (
-      <div className="min-h-[40vh] flex items-center justify-center">
+      <div className="min-h-[40vh] bg-white flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-bridge-blue" />
       </div>
     );
@@ -40,7 +40,7 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
 
   if (!user) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="min-h-[60vh] bg-white flex items-center justify-center">
         <div className="w-full max-w-sm text-center space-y-5 p-4">
           <div className="flex justify-center mb-6">
             <img
