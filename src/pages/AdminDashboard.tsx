@@ -671,7 +671,7 @@ export default function AdminDashboard() {
                           size="sm"
                           variant="ghost"
                           className="text-green-600 hover:text-green-700 hover:bg-green-50 shrink-0"
-                          onClick={() => window.open(`${window.location.origin}/?id=${r.id}`, '_blank')}
+                          onClick={() => window.open(`${window.location.origin}/events?id=${r.id}`, '_blank')}
                           title="פתח בחלונית חדשה"
                         >
                           <ExternalLink className="h-4 w-4" />
