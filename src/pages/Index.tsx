@@ -157,9 +157,6 @@ const Index = () => {
             alt="פסטיבל ברידג' ים האדום"
             className="mx-auto mb-4 max-w-xs h-auto"
           />
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            ברוכים הבאים למערכת השוברים הדיגיטלית של פסטיבל הברידג' באילת
-          </p>
         </div>
 
   {/* Main Card */}

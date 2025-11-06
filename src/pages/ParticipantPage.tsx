@@ -114,7 +114,7 @@ const ParticipantPage = () => {
 
   if (isEnterMode) {
     return (
-      <div className="min-h-screen bg-white" dir={isEnglish ? "ltr" : "rtl"}>
+      <div className="min-h-screen" dir={isEnglish ? "ltr" : "rtl"}>
         <div className="container mx-auto px-4 py-8 max-w-md space-y-6">
           <div className="flex justify-center mb-6">
             <img src={bannerSrc} alt="RedSea Bridge Festival" className="max-h-24 w-auto" />
@@ -150,14 +150,14 @@ const ParticipantPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-bridge-blue" />
       </div>
     );
   }
   if (!participant) {
     return (
-      <div className="min-h-screen bg-white" dir="rtl">
+      <div className="min-h-screen" dir="rtl">
         <div className="container mx-auto px-4 py-8 max-w-md space-y-6">
           <Card className="border border-bridge-blue/20 shadow-xl overflow-hidden rounded-lg">
             <CardHeader className="bg-gradient-to-r from-bridge-blue to-bridge-red text-white">
@@ -198,7 +198,7 @@ const ParticipantPage = () => {
 
   return (
   
-    <div className="min-h-screen bg-white" dir={isEnglish ? "ltr" : "rtl"}>
+    <div className="min-h-screen" dir={isEnglish ? "ltr" : "rtl"}>
       <div className="container mx-auto px-4 py-8 max-w-2xl space-y-6">
         {/* תמונת לוגו בראש העמוד - סטיקי למעלה */}
         <div className="sticky top-0 z-50 -mx-4 px-4 pt-2 pb-3 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b">
