@@ -839,10 +839,10 @@ const EventsList = ({ participant }: EventsListProps) => {
           <div className="grid grid-cols-2 gap-6">
             {/* TL - Booklet */}
             <div className="flex flex-col items-center text-center">
-              <a href="https://online.anyflip.com/wsbi/yfqs/mobile/index.html" target="_blank" rel="noopener noreferrer" className="block">
+              <a href="https://www.bridgeredsea.com/2025-booklet" target="_blank" rel="noopener noreferrer" className="block">
                 <img src={logoBooklet} alt="Festival Booklet" className="h-20 w-20 object-contain mx-auto" />
               </a>
-              <a href="https://online.anyflip.com/wsbi/yfqs/mobile/index.html" target="_blank" rel="noopener noreferrer" className="mt-2 text-xs text-muted-foreground hover:underline">
+              <a href="https://www.bridgeredsea.com/2025-booklet" target="_blank" rel="noopener noreferrer" className="mt-2 text-xs text-muted-foreground hover:underline">
                 {isEnglish ? "View the festival booklet" : "לצפייה בחוברת הפסטיבל לחצו כאן"}
               </a>
             </div>
