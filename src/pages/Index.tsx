@@ -16,6 +16,7 @@ const Index = () => {
   const [participantId, setParticipantId] = useState("");
   const [csvParticipants, setCsvParticipants] = useState<any[]>([]);
   const [syncingAll, setSyncingAll] = useState(false);
+  const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
 
   // Allowed names to display on the home page
   const allowedNamesRaw = useMemo(
@@ -127,19 +128,33 @@ const Index = () => {
     try {
       setSyncingAll(true);
       const year = getYearKey();
+      const total = csvParticipants.filter(row => {
+        const pid = String(row.ID ?? row.id ?? row["מזהה"] ?? "").trim();
+        return !!pid;
+      }).length;
+      
+      setSyncProgress({ current: 0, total });
       let count = 0;
+      
       for (const row of csvParticipants) {
         const pid = String(row.ID ?? row.id ?? row["מזהה"] ?? "").trim();
         if (!pid) continue;
         const seeds = buildEventSeeds(row);
         await upsertParticipantAndSeedEvents(year, row, seeds);
         count++;
+        
+        // עדכון אחוז התקדמות
+        setSyncProgress({ current: count, total });
+        const percentage = Math.round((count / total) * 100);
+        console.log(`התקדמות: ${count}/${total} (${percentage}%)`);
       }
+      
       toast({ title: "סנכרון הושלם", description: `נסנכרו ${count} משתתפים לשנה ${year}.` });
     } catch (e) {
       toast({ title: "שגיאת סנכרון", description: String(e), variant: "destructive" });
     } finally {
       setSyncingAll(false);
+      setSyncProgress({ current: 0, total: 0 });
     }
   };
 
@@ -222,7 +237,11 @@ const Index = () => {
                     onClick={handleSyncAllToFirestore}
                     disabled={syncingAll || csvParticipants.length === 0}
                   >
-                    {syncingAll ? "מסנכרן את כל המשתתפים…" : "סנכרון כל המשתתפים ל-Firestore (DEV)"}
+                    {syncingAll && syncProgress.total > 0
+                      ? `מסנכרן ${syncProgress.current}/${syncProgress.total} (${Math.round((syncProgress.current / syncProgress.total) * 100)}%)`
+                      : syncingAll
+                      ? "מסנכרן את כל המשתתפים…"
+                      : "סנכרון כל המשתתפים ל-Firestore (DEV)"}
                   </Button>
                 </div>
               </>
