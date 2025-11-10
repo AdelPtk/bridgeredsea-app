@@ -38,13 +38,8 @@ const Index = () => {
     [csvParticipants, allowedSet]
   );
 
-  // קריאה ופרסינג של DATA.csv מה-public - רק במצב DEV
+  // קריאה ופרסינג של DATA.csv מה-public
   useEffect(() => {
-    // Skip loading CSV in production to improve performance
-    if (!import.meta.env.DEV) {
-      return;
-    }
-    
     fetch("/DATA.csv")
       .then((res) => res.text())
       .then((csvText) => {
