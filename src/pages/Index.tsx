@@ -17,6 +17,7 @@ const Index = () => {
   const [csvParticipants, setCsvParticipants] = useState<any[]>([]);
   const [syncingAll, setSyncingAll] = useState(false);
   const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
+  const [shouldStopSync, setShouldStopSync] = useState(false);
 
   // Allowed names to display on the home page
   const allowedNamesRaw = useMemo(
@@ -122,6 +123,7 @@ const Index = () => {
   const handleSyncAllToFirestore = async () => {
     try {
       setSyncingAll(true);
+      setShouldStopSync(false);
       const year = getYearKey();
       const total = csvParticipants.filter(row => {
         const pid = String(row.ID ?? row.id ?? row["מזהה"] ?? "").trim();
@@ -132,6 +134,12 @@ const Index = () => {
       let count = 0;
       
       for (const row of csvParticipants) {
+        // בדיקה אם המשתמש ביקש לעצור
+        if (shouldStopSync) {
+          toast({ title: "סנכרון הופסק", description: `נסנכרו ${count} מתוך ${total} משתתפים.`, variant: "default" });
+          break;
+        }
+        
         const pid = String(row.ID ?? row.id ?? row["מזהה"] ?? "").trim();
         if (!pid) continue;
         const seeds = buildEventSeeds(row);
@@ -144,12 +152,15 @@ const Index = () => {
         console.log(`התקדמות: ${count}/${total} (${percentage}%)`);
       }
       
-      toast({ title: "סנכרון הושלם", description: `נסנכרו ${count} משתתפים לשנה ${year}.` });
+      if (!shouldStopSync) {
+        toast({ title: "סנכרון הושלם", description: `נסנכרו ${count} משתתפים לשנה ${year}.` });
+      }
     } catch (e) {
       toast({ title: "שגיאת סנכרון", description: String(e), variant: "destructive" });
     } finally {
       setSyncingAll(false);
       setSyncProgress({ current: 0, total: 0 });
+      setShouldStopSync(false);
     }
   };
 
@@ -198,47 +209,31 @@ const Index = () => {
               <p className="text-xs text-muted-foreground text-center">לצוות: מעבר למסך הזנת קוד משתתף (6 ספרות)</p>
             </div>
 
-            {/* אזור העלאת קובץ CSV והצגת משתתפים */}
-            <>
-              <div className="border-t pt-4">
-                <p className="text-sm text-muted-foreground text-center mb-3">
-                  צפייה בנתוני משתתפים מהקובץ:
-                </p>
-                <div className="space-y-2">
-                  {displayParticipants.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center">לא נטען קובץ משתתפים.</p>
-                  ) : (
-                    displayParticipants.map((p, idx) => (
-                      <Button
-                        key={idx}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDemoClick((p.ID ?? p.id ?? p["מזהה"] ?? "").toString().trim())}
-                        className="w-full border-bridge-blue text-bridge-blue hover:bg-bridge-blue hover:text-white"
-                        disabled={!(p.ID || p.id || p["מזהה"]) }
-                      >
-                        {p.NAME || ""}
-                      </Button>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2 border-t pt-4">
+            {/* כפתור סנכרון משתתפים */}
+            <div className="space-y-2 border-t pt-4">
+              <Button
+                variant="outline"
+                className="w-full border-bridge-red text-bridge-red hover:bg-bridge-red hover:text-white"
+                onClick={handleSyncAllToFirestore}
+                disabled={syncingAll || csvParticipants.length === 0}
+              >
+                {syncingAll && syncProgress.total > 0
+                  ? `מסנכרן ${syncProgress.current}/${syncProgress.total} (${Math.round((syncProgress.current / syncProgress.total) * 100)}%)`
+                  : syncingAll
+                  ? "מסנכרן את כל המשתתפים…"
+                  : "סנכרון כל המשתתפים ל-Firestore"}
+              </Button>
+              
+              {syncingAll && (
                 <Button
-                  variant="outline"
-                  className="w-full border-bridge-red text-bridge-red hover:bg-bridge-red hover:text-white"
-                  onClick={handleSyncAllToFirestore}
-                  disabled={syncingAll || csvParticipants.length === 0}
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => setShouldStopSync(true)}
                 >
-                  {syncingAll && syncProgress.total > 0
-                    ? `מסנכרן ${syncProgress.current}/${syncProgress.total} (${Math.round((syncProgress.current / syncProgress.total) * 100)}%)`
-                    : syncingAll
-                    ? "מסנכרן את כל המשתתפים…"
-                    : "סנכרון כל המשתתפים ל-Firestore"}
+                  עצור סנכרון
                 </Button>
-              </div>
-            </>
+              )}
+            </div>
           </CardContent>
         </Card>
 
