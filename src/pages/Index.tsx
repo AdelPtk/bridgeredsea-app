@@ -198,49 +198,47 @@ const Index = () => {
               <p className="text-xs text-muted-foreground text-center">לצוות: מעבר למסך הזנת קוד משתתף (6 ספרות)</p>
             </div>
 
-            {/* אזור העלאת קובץ CSV והצגת משתתפים - רק ב-DEV */}
-            {import.meta.env.DEV && (
-              <>
-                <div className="border-t pt-4">
-                  <p className="text-sm text-muted-foreground text-center mb-3">
-                    צפייה בנתוני משתתפים מהקובץ:
-                  </p>
-                  <div className="space-y-2">
-                    {displayParticipants.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center">לא נטען קובץ משתתפים.</p>
-                    ) : (
-                      displayParticipants.map((p, idx) => (
-                        <Button
-                          key={idx}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDemoClick((p.ID ?? p.id ?? p["מזהה"] ?? "").toString().trim())}
-                          className="w-full border-bridge-blue text-bridge-blue hover:bg-bridge-blue hover:text-white"
-                          disabled={!(p.ID || p.id || p["מזהה"]) }
-                        >
-                          {p.NAME || ""}
-                        </Button>
-                      ))
-                    )}
-                  </div>
+            {/* אזור העלאת קובץ CSV והצגת משתתפים */}
+            <>
+              <div className="border-t pt-4">
+                <p className="text-sm text-muted-foreground text-center mb-3">
+                  צפייה בנתוני משתתפים מהקובץ:
+                </p>
+                <div className="space-y-2">
+                  {displayParticipants.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center">לא נטען קובץ משתתפים.</p>
+                  ) : (
+                    displayParticipants.map((p, idx) => (
+                      <Button
+                        key={idx}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDemoClick((p.ID ?? p.id ?? p["מזהה"] ?? "").toString().trim())}
+                        className="w-full border-bridge-blue text-bridge-blue hover:bg-bridge-blue hover:text-white"
+                        disabled={!(p.ID || p.id || p["מזהה"]) }
+                      >
+                        {p.NAME || ""}
+                      </Button>
+                    ))
+                  )}
                 </div>
+              </div>
 
-                <div className="space-y-2 border-t pt-4">
-                  <Button
-                    variant="outline"
-                    className="w-full border-bridge-red text-bridge-red hover:bg-bridge-red hover:text-white"
-                    onClick={handleSyncAllToFirestore}
-                    disabled={syncingAll || csvParticipants.length === 0}
-                  >
-                    {syncingAll && syncProgress.total > 0
-                      ? `מסנכרן ${syncProgress.current}/${syncProgress.total} (${Math.round((syncProgress.current / syncProgress.total) * 100)}%)`
-                      : syncingAll
-                      ? "מסנכרן את כל המשתתפים…"
-                      : "סנכרון כל המשתתפים ל-Firestore (DEV)"}
-                  </Button>
-                </div>
-              </>
-            )}
+              <div className="space-y-2 border-t pt-4">
+                <Button
+                  variant="outline"
+                  className="w-full border-bridge-red text-bridge-red hover:bg-bridge-red hover:text-white"
+                  onClick={handleSyncAllToFirestore}
+                  disabled={syncingAll || csvParticipants.length === 0}
+                >
+                  {syncingAll && syncProgress.total > 0
+                    ? `מסנכרן ${syncProgress.current}/${syncProgress.total} (${Math.round((syncProgress.current / syncProgress.total) * 100)}%)`
+                    : syncingAll
+                    ? "מסנכרן את כל המשתתפים…"
+                    : "סנכרון כל המשתתפים ל-Firestore"}
+                </Button>
+              </div>
+            </>
           </CardContent>
         </Card>
 
