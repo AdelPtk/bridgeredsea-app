@@ -413,20 +413,19 @@ const EventsList = ({ participant }: EventsListProps) => {
     }
   };
 
-  if (availableEvents.length === 0) {
-    return (
-      <Card className="w-full max-w-2xl mx-auto">
-        <CardContent className="p-6 text-center">
-          <p className="text-muted-foreground">{isEnglish ? "No events found for this participant" : "לא נמצאו אירועים עבור משתתף זה"}</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="w-full max-w-2xl mx-auto space-y-4" dir={isEnglish ? "ltr" : "rtl"}>
-      {/* Now Happening banners */}
-      {activeEventKeys.length > 0 && (
+      {/* No events message - only if there are no events */}
+      {availableEvents.length === 0 && (
+        <Card className="w-full max-w-2xl mx-auto">
+          <CardContent className="p-6 text-center">
+            <p className="text-muted-foreground">{isEnglish ? "No events found for this participant" : "לא נמצאו אירועים עבור משתתף זה"}</p>
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* Now Happening banners - only if there are events */}
+      {availableEvents.length > 0 && activeEventKeys.length > 0 && (
         <div className="space-y-3">
           {activeEventKeys.map((key) => {
             const ev = eventMappings[key as keyof typeof eventMappings];
@@ -591,62 +590,65 @@ const EventsList = ({ participant }: EventsListProps) => {
         </div>
       )}
       {/* Language toggle moved to ParticipantPage header */}
-      {/* Completely hide the scrollbar for the AnimatedList container */}
-      <style>{`
-        .animated-list-scrollbar::-webkit-scrollbar {
-          width: 0px;
-          background: transparent;
-        }
-        .animated-list-scrollbar::-webkit-scrollbar-thumb {
-          background: transparent;
-        }
-        .animated-list-scrollbar {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
-        .animated-list-scrollbar {
-          overflow: -moz-scrollbars-none;
-        }
-        /* Ticket notch styling - semicircle cutout effect */
-        .ticket-notch-left::before,
-        .ticket-notch-right::before {
-          content: '';
-          position: absolute;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          border: 2px dashed;
-        }
-        .ticket-notch-left::before {
-          left: -3px;
-          border-right: none;
-          clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
-        }
-        .ticket-notch-right::before {
-          right: -3px;
-          border-left: none;
-          clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
-        }
-        .ticket-notch-green::before {
-          border-color: #16a34a;
-        }
-        .ticket-notch-red::before {
-          border-color: #dc2626;
-        }
-        .ticket-notch-blue::before {
-          border-color: #1e40af;
-        }
-      `}</style>
-      <Card className="rounded-lg overflow-hidden">
-        <CardHeader className="bg-[#e7354b] text-white">
-          <CardTitle className="text-center text-2xl font-bold">
-            {isEnglish ? "Event Details" : "פרטי אירועים"}
-          </CardTitle>
-        </CardHeader>
-      </Card>
-      <AnimatedList
+      {/* Events list - only if there are events */}
+      {availableEvents.length > 0 && (
+        <>
+          {/* Completely hide the scrollbar for the AnimatedList container */}
+          <style>{`
+            .animated-list-scrollbar::-webkit-scrollbar {
+              width: 0px;
+              background: transparent;
+            }
+            .animated-list-scrollbar::-webkit-scrollbar-thumb {
+              background: transparent;
+            }
+            .animated-list-scrollbar {
+              scrollbar-width: none;
+              -ms-overflow-style: none;
+            }
+            .animated-list-scrollbar {
+              overflow: -moz-scrollbars-none;
+            }
+            /* Ticket notch styling - semicircle cutout effect */
+            .ticket-notch-left::before,
+            .ticket-notch-right::before {
+              content: '';
+              position: absolute;
+              top: 50%;
+              transform: translateY(-50%);
+              width: 12px;
+              height: 12px;
+              border-radius: 50%;
+              border: 2px dashed;
+            }
+            .ticket-notch-left::before {
+              left: -3px;
+              border-right: none;
+              clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
+            }
+            .ticket-notch-right::before {
+              right: -3px;
+              border-left: none;
+              clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+            }
+            .ticket-notch-green::before {
+              border-color: #16a34a;
+            }
+            .ticket-notch-red::before {
+              border-color: #dc2626;
+            }
+            .ticket-notch-blue::before {
+              border-color: #1e40af;
+            }
+          `}</style>
+          <Card className="rounded-lg overflow-hidden">
+            <CardHeader className="bg-[#e7354b] text-white">
+              <CardTitle className="text-center text-2xl font-bold">
+                {isEnglish ? "Event Details" : "פרטי אירועים"}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <AnimatedList
         items={
           // Filter out events that don't exist in Firestore (removed by admin)
           // Sort so redeemed events appear at the bottom; preserve relative order within groups
@@ -786,6 +788,8 @@ const EventsList = ({ participant }: EventsListProps) => {
         displayScrollbar={true}
         className="animated-list-scrollbar"
       />
+        </>
+      )}
       
       {/* Coffee & Cake Voucher */}
       <div className="mt-6 mb-6 rounded-lg" style={{
