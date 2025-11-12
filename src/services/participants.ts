@@ -126,6 +126,10 @@ export async function upsertParticipantAndSeedEvents(
         eligibleDelta: eventQty, 
         participantsDelta: 1 
       });
+    } else if ((snap.data() as any)._adminRemoved === true) {
+      // Skip events that were explicitly removed by admin
+      // Don't restore them even if they exist in CSV
+      continue;
     } else {
       // ensure quantity is present if previously missing
       const data = snap.data();
@@ -161,6 +165,10 @@ export async function fetchEventsStatus(
   const existing: Record<string, EventStatus> = {};
   snap.forEach((docSnap) => {
     const d = docSnap.data() as any;
+    // Skip events that were removed by admin
+    if (d._adminRemoved === true) {
+      return;
+    }
     const qty = typeof d.quantity === "number" ? d.quantity : 1;
     const consumed = typeof d.consumed === "number" ? d.consumed : (d.redeemed ? qty : 0);
     existing[docSnap.id] = {
@@ -424,8 +432,15 @@ export async function removeEventFromParticipant(year: string, participantId: st
   const prevQty = typeof data.quantity === "number" ? data.quantity : 0;
   const prevConsumed = typeof data.consumed === "number" ? data.consumed : 0;
   
-  // Delete the event document
-  await deleteDoc(ref);
+  // Instead of deleting, mark as admin-removed and set quantity to 0
+  // This prevents re-seeding from CSV
+  await setDoc(ref, {
+    _adminRemoved: true,
+    _removedAt: new Date().toISOString(),
+    quantity: 0,
+    consumed: 0,
+    redeemed: false,
+  }, { merge: true });
   
   // Update event stats: remove this participant's eligibility
   await incrementEventStats(year, eventKey, { 
@@ -448,9 +463,13 @@ export async function addEventToParticipant(
   if (!db) return;
   const ref = eventDocRef(year, participantId, eventKey);
   const snap = await getDoc(ref);
-  if (snap.exists()) return; // Already exists, don't re-add
   
-  // Create new event document
+  // Check if event exists but was admin-removed
+  const wasRemoved = snap.exists() && (snap.data() as any)._adminRemoved === true;
+  
+  if (snap.exists() && !wasRemoved) return; // Already exists and active, don't re-add
+  
+  // Create new event document or restore removed event
   await setDoc(ref, {
     eventKey,
     name: eventName,
@@ -463,6 +482,7 @@ export async function addEventToParticipant(
     year,
     participantId,
     _createdAt: new Date().toISOString(),
+    _adminRemoved: false, // Clear the removal flag if it existed
   });
   
   // Update event stats: add this participant's eligibility
@@ -908,6 +928,10 @@ export async function listEventsForParticipant(year: string, participantId: stri
   const rows: ParticipantEventRow[] = [];
   snap.forEach((docSnap) => {
     const d = docSnap.data() as any;
+    // Skip events that were removed by admin
+    if (d._adminRemoved === true) {
+      return;
+    }
     const qty = typeof d.quantity === "number" ? d.quantity : 1;
     const consumed = typeof d.consumed === "number" ? d.consumed : (d.redeemed ? qty : 0);
     rows.push({
