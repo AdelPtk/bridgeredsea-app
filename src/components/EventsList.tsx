@@ -137,7 +137,7 @@ const EventsList = ({ participant }: EventsListProps) => {
     },
     COCKTAIL: {
       name: "קוקטייל פתיחת התחרות המרכזית",
-      nameEn: "Main Competition Opening Cocktail",
+      nameEn: "Main Event Opening Cocktail",
       value: participant.COCKTAIL,
       description: "קוקטייל חגיגי עם כיבוד עשיר והופעה",
       descriptionEn: "Festive cocktail with rich refreshments and performance",
