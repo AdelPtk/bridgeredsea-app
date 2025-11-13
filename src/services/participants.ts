@@ -426,11 +426,16 @@ export async function removeEventFromParticipant(year: string, participantId: st
   if (!db) return;
   const ref = eventDocRef(year, participantId, eventKey);
   const snap = await getDoc(ref);
-  if (!snap.exists()) return;
+  if (!snap.exists()) {
+    console.log(`[removeEventFromParticipant] Event ${eventKey} doesn't exist for participant ${participantId}`);
+    return;
+  }
   
   const data = snap.data();
   const prevQty = typeof data.quantity === "number" ? data.quantity : 0;
   const prevConsumed = typeof data.consumed === "number" ? data.consumed : 0;
+  
+  console.log(`[removeEventFromParticipant] Marking event ${eventKey} as removed for participant ${participantId}`);
   
   // Instead of deleting, mark as admin-removed and set quantity to 0
   // This prevents re-seeding from CSV
@@ -441,6 +446,8 @@ export async function removeEventFromParticipant(year: string, participantId: st
     consumed: 0,
     redeemed: false,
   }, { merge: true });
+  
+  console.log(`[removeEventFromParticipant] Successfully marked event ${eventKey} as removed`);
   
   // Update event stats: remove this participant's eligibility
   await incrementEventStats(year, eventKey, { 
@@ -930,6 +937,7 @@ export async function listEventsForParticipant(year: string, participantId: stri
     const d = docSnap.data() as any;
     // Skip events that were removed by admin
     if (d._adminRemoved === true) {
+      console.log(`[listEventsForParticipant] Skipping removed event: ${docSnap.id} for participant ${pid}`);
       return;
     }
     const qty = typeof d.quantity === "number" ? d.quantity : 1;
@@ -943,6 +951,7 @@ export async function listEventsForParticipant(year: string, participantId: stri
       finalized: Boolean(d.finalized),
     });
   });
+  console.log(`[listEventsForParticipant] Found ${rows.length} active events for participant ${pid}`);
   // Keep a stable event order by key for nicer display
   return rows.sort((a, b) => a.eventKey.localeCompare(b.eventKey));
 }
