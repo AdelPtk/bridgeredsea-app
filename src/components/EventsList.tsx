@@ -235,7 +235,11 @@ const EventsList = ({ participant }: EventsListProps) => {
     if (!y || !m || !d || oh == null || om == null || ch == null || cm == null) return false;
     // Treat schedule as local time; convert to UTC baseline for comparison
     const start = new Date(Date.UTC(y, m - 1, d, oh, om, 0));
-    const end = new Date(Date.UTC(y, m - 1, d, ch, cm, 0));
+    let end = new Date(Date.UTC(y, m - 1, d, ch, cm, 0));
+    // If end is before or equal start, treat end as next day (overnight event)
+    if (end.getTime() <= start.getTime()) {
+      end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+    }
     const nowUTC = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
     return nowUTC >= start && nowUTC <= end;
   };
@@ -247,7 +251,14 @@ const EventsList = ({ participant }: EventsListProps) => {
     const [y, m, d] = sch.date.split("-").map(Number);
     const [ch, cm] = sch.closeTime.split(":").map(Number);
     if (!y || !m || !d || ch == null || cm == null) return false;
-    const end = new Date(Date.UTC(y, m - 1, d, ch, cm, 0));
+    let end = new Date(Date.UTC(y, m - 1, d, ch, cm, 0));
+    // If close time is earlier than open time, it likely refers to the next day.
+    // Adjust end to the next day when needed (we don't have openTime here, so compare with midnight heuristic)
+    // Safer approach: if end is earlier than current day's start-of-day time, add 24h
+    const startOfDay = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+    if (end.getTime() <= startOfDay.getTime()) {
+      end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+    }
     const nowUTC = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
     return nowUTC > end;
   };
