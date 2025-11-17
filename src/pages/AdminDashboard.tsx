@@ -431,9 +431,12 @@ export default function AdminDashboard() {
                 {/* Schedule editor */}
                 <div className="rounded-md border p-3 space-y-3">
                   <div className="font-medium text-center sm:text-right">הגדרת שעות לאירוע</div>
+                  <div className="text-sm text-muted-foreground text-center sm:text-right">
+                    שעת סגירה היא אופציונלית - אם לא מוגדרת, האירוע יהיה פעיל מרגע שעת הפתיחה ואילך
+                  </div>
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <label className="block text-sm mb-1 text-center sm:text-right">תאריך</label>
+                      <label className="block text-sm mb-1 text-center sm:text-right">תאריך <span className="text-red-500">*</span></label>
                       <input
                         type="date"
                         className="w-full border rounded px-2 py-1.5 text-center sm:text-right"
@@ -443,7 +446,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm mb-1 text-center sm:text-right">שעת פתיחה</label>
+                        <label className="block text-sm mb-1 text-center sm:text-right">שעת פתיחה <span className="text-red-500">*</span></label>
                         <input
                           type="time"
                           className="w-full border rounded px-2 py-1.5 text-center"
@@ -452,7 +455,7 @@ export default function AdminDashboard() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm mb-1 text-center sm:text-right">שעת סגירה</label>
+                        <label className="block text-sm mb-1 text-center sm:text-right">שעת סגירה (אופציונלי)</label>
                         <input
                           type="time"
                           className="w-full border rounded px-2 py-1.5 text-center"

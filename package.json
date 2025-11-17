@@ -13,9 +13,7 @@
     "docx:pdf": "node server/docx_to_pdf.js",
     "server": "node server/server.js",
     "provision:admins": "node server/provision_admins.js",
-    "initialize-counters": "tsx scripts/initialize-counters.ts",
-    "remove-eligibility": "tsx scripts/remove-event-eligibility.ts",
-    "check-participants": "tsx scripts/check-participants.ts"
+    "initialize-counters": "tsx scripts/initialize-counters.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

@@ -225,41 +225,39 @@ const EventsList = ({ participant }: EventsListProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participant.ID, availableEvents.length]);
 
-  // Helper: is the event active now according to schedule
+  // Helper: is the event active now according to schedule (only needs opening time)
   const isNowWithin = (sch?: EventSchedule | null) => {
-    if (!sch || !sch.date || !sch.openTime || !sch.closeTime) return false;
+    if (!sch || !sch.date || !sch.openTime) return false;
     const now = new Date();
     const [y, m, d] = sch.date.split("-").map(Number);
     const [oh, om] = sch.openTime.split(":").map(Number);
-    const [ch, cm] = sch.closeTime.split(":").map(Number);
-    if (!y || !m || !d || oh == null || om == null || ch == null || cm == null) return false;
+    if (!y || !m || !d || oh == null || om == null) return false;
     // Treat schedule as local time; convert to UTC baseline for comparison
     const start = new Date(Date.UTC(y, m - 1, d, oh, om, 0));
-    let end = new Date(Date.UTC(y, m - 1, d, ch, cm, 0));
-    // If end is before or equal start, treat end as next day (overnight event)
-    if (end.getTime() <= start.getTime()) {
-      end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
-    }
     const nowUTC = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-    return nowUTC >= start && nowUTC <= end;
+    
+    // If closeTime exists, check if we're within the window
+    if (sch.closeTime) {
+      const [ch, cm] = sch.closeTime.split(":").map(Number);
+      if (ch != null && cm != null) {
+        const end = new Date(Date.UTC(y, m - 1, d, ch, cm, 0));
+        return nowUTC >= start && nowUTC <= end;
+      }
+    }
+    
+    // No closeTime - event is live once opening time has passed
+    return nowUTC >= start;
   };
 
   // Helper: has the event ended (current time strictly after close time)?
   const isEnded = (sch?: EventSchedule | null) => {
-    if (!sch || !sch.date || !sch.openTime || !sch.closeTime) return false;
+    // Event can only end if closeTime is specified
+    if (!sch || !sch.date || !sch.closeTime) return false;
     const now = new Date();
     const [y, m, d] = sch.date.split("-").map(Number);
     const [ch, cm] = sch.closeTime.split(":").map(Number);
     if (!y || !m || !d || ch == null || cm == null) return false;
-    // Use openTime to decide if close refers to next day (overnight event)
-    const [oh, om] = sch.openTime.split(":").map(Number);
-    if (oh == null || om == null) return false;
-    const start = new Date(Date.UTC(y, m - 1, d, oh, om, 0));
-    let end = new Date(Date.UTC(y, m - 1, d, ch, cm, 0));
-    // If end is earlier or equal to start, treat end as next day
-    if (end.getTime() <= start.getTime()) {
-      end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
-    }
+    const end = new Date(Date.UTC(y, m - 1, d, ch, cm, 0));
     const nowUTC = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
     return nowUTC > end;
   };
@@ -348,23 +346,33 @@ const EventsList = ({ participant }: EventsListProps) => {
     const pid = String(participant.ID ?? (participant as any).id ?? (participant as any)["מזהה"] ?? "").trim();
     if (!pid) return;
     const year = getYearKey();
-    // Enforce schedule - MUST be configured and within time window
+    // Enforce schedule - MUST have date and opening time configured
     const sch = schedules[eventKey];
-    // If no schedule OR schedule exists but we're outside time window → block
-    if (!sch || !sch.date || !sch.openTime || !sch.closeTime) {
+    // If no schedule OR missing date/openTime → block
+    if (!sch || !sch.date || !sch.openTime) {
       // No schedule defined - block access
       setBlockedInfo({ open: true, key: eventKey });
       return;
     }
-    // Schedule exists - check if we're within time window
+    // Schedule exists - check if opening time has passed
     const now = new Date();
     const [y, m, d] = sch.date.split("-").map(Number);
     const [oh, om] = sch.openTime.split(":").map(Number);
-    const [ch, cm] = sch.closeTime.split(":").map(Number);
     const start = new Date(Date.UTC(y!, (m! - 1), d!, oh!, om!, 0));
-    const end = new Date(Date.UTC(y!, (m! - 1), d!, ch!, cm!, 0));
     const nowUTC = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-    const within = nowUTC >= start && nowUTC <= end;
+    
+    // Check if we're past opening time
+    let within = nowUTC >= start;
+    
+    // If closeTime exists, also check we haven't passed it
+    if (sch.closeTime) {
+      const [ch, cm] = sch.closeTime.split(":").map(Number);
+      if (ch != null && cm != null) {
+        const end = new Date(Date.UTC(y!, (m! - 1), d!, ch!, cm!, 0));
+        within = within && nowUTC <= end;
+      }
+    }
+    
     if (!within) {
       setBlockedInfo({ open: true, key: eventKey });
       return;
@@ -533,9 +541,9 @@ const EventsList = ({ participant }: EventsListProps) => {
                       </div>
                       <AlertDialog>
                         <AlertDialogTrigger asChild onClick={(e) => {
-                          // Check schedule: must be defined AND within time window
+                          // Check schedule: must have date and opening time
                           const sch = schedules[key];
-                          if (!sch || !sch.date || !sch.openTime || !sch.closeTime) {
+                          if (!sch || !sch.date || !sch.openTime) {
                             e.preventDefault();
                             setBlockedInfo({ open: true, key });
                             return;
@@ -722,10 +730,10 @@ const EventsList = ({ participant }: EventsListProps) => {
   {!fullyRedeemed && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild onClick={(e) => {
-                        // Check schedule: must be defined AND within time window
+                        // Check schedule: must have date and opening time
                         const sch = schedules[key];
-                        // Block if no schedule OR outside time window
-                        if (!sch || !sch.date || !sch.openTime || !sch.closeTime) {
+                        // Block if no schedule OR missing required fields
+                        if (!sch || !sch.date || !sch.openTime) {
                           e.preventDefault();
                           setBlockedInfo({ open: true, key });
                           return;
@@ -733,11 +741,19 @@ const EventsList = ({ participant }: EventsListProps) => {
                         const now = new Date();
                         const [y, m, d] = sch.date.split("-").map(Number);
                         const [oh, om] = sch.openTime.split(":").map(Number);
-                        const [ch, cm] = sch.closeTime.split(":").map(Number);
                         const start = new Date(Date.UTC(y!, (m! - 1), d!, oh!, om!, 0));
-                        const end = new Date(Date.UTC(y!, (m! - 1), d!, ch!, cm!, 0));
                         const nowUTC = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-                        const within = nowUTC >= start && nowUTC <= end;
+                        let within = nowUTC >= start;
+                        
+                        // If closeTime exists, also check we haven't passed it
+                        if (sch.closeTime) {
+                          const [ch, cm] = sch.closeTime.split(":").map(Number);
+                          if (ch != null && cm != null) {
+                            const end = new Date(Date.UTC(y!, (m! - 1), d!, ch!, cm!, 0));
+                            within = within && nowUTC <= end;
+                          }
+                        }
+                        
                         if (!within) {
                           e.preventDefault();
                           setBlockedInfo({ open: true, key });
@@ -906,8 +922,8 @@ const EventsList = ({ participant }: EventsListProps) => {
                   const ev = key ? eventMappings[key] : undefined;
                   const sch = key ? schedules[key] : undefined;
                   
-                  // Check if schedule is not defined at all
-                  const noSchedule = !sch || !sch.date || !sch.openTime || !sch.closeTime;
+                  // Check if schedule is not defined (missing date or opening time)
+                  const noSchedule = !sch || !sch.date || !sch.openTime;
                   
                   if (noSchedule) {
                     return (
@@ -938,7 +954,7 @@ const EventsList = ({ participant }: EventsListProps) => {
                   return (
                     <div className="space-y-1 text-center">
                       <div className="font-bold">{isEnglish ? "Date" : "תאריך"}: {dateText}</div>
-                      <div className="font-bold">{isEnglish ? "Time" : "שעה"}: {timeText}</div>
+                      <div className="font-bold">{isEnglish ? "Opening Time" : "שעת פתיחה"}: {timeText}</div>
                       <div className="font-bold">{isEnglish ? "Location" : "מיקום"}: {locText}</div>
                     </div>
                   );
