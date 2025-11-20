@@ -175,7 +175,7 @@ const EventsList = ({ participant }: EventsListProps) => {
       description: "טעימות מן הבלקן",
       descriptionEn: "Balkan Tasting",
       icon: "Sparkles",
-      date: "21/11/2025 15:00",
+      date: "21/11/2025 14:00",
       location: "מרפסת לובי רויאל ביץ'",
       locationEn: "Royal Beach Lobby Terrace",
     },
