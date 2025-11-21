@@ -186,7 +186,7 @@ const EventsList = ({ participant }: EventsListProps) => {
       description: "טקס חלוקת פרסים חגיגי, קוקטייל ומסיבת ריקודים",
       descriptionEn: "Festive awards ceremony, cocktail, and dance party",
       icon: "Trophy",
-      date: "21/11/2025 21:00",
+      date: "21/11/2025 21:30",
       location: "מרכז הכנסים רויאל ביץ'",
       locationEn: "Royal Beach Conference Center",
     },
